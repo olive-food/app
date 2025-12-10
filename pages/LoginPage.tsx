@@ -1,137 +1,176 @@
-import React, { useState, useEffect } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
-import { useApp } from "../context/AppContext";
-import { UserRole } from "../types";
+// pages/LoginPage.tsx
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { useApp } from '../context/AppContext';
+import { UserRole } from '../types';
 
 export const LoginPage: React.FC = () => {
   const { login, loginWithCredentials } = useApp();
   const navigate = useNavigate();
   const location = useLocation();
 
-  const [activeTab, setActiveTab] = useState<"worker" | "management">("worker");
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
+  const [activeTab, setActiveTab] = useState<'worker' | 'management'>('worker');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
 
-  // ⬇ xử lý callback Google
+  // --- GOOGLE OAUTH: đọc googleUser, auto login & chuyển vào /cs ---
   useEffect(() => {
     const params = new URLSearchParams(location.search);
-    const googleLogin = params.get("googleLogin");
+    const googleUserParam = params.get('googleUser');
 
-    if (googleLogin === "1") {
-      console.log("Google login callback OK");
+    if (googleUserParam) {
+      try {
+        const decoded = decodeURIComponent(googleUserParam);
+        const googleUser = JSON.parse(decoded);
+        console.log('Google user from OAuth:', googleUser);
+      } catch (err) {
+        console.error('Failed to parse googleUser param', err);
+      }
 
-      login("google", UserRole.WORKER);
-
-      // Điều hướng vào trang công nhân
-      navigate("/cs", { replace: true });
+      // Đăng nhập nhanh với provider "google"
+      login('google', UserRole.WORKER);
+      // Chuyển sang màn "Truy cập bếp ăn"
+      navigate('/cs', { replace: true });
     }
-  }, [location.search]);
+  }, [location.search, login, navigate]);
 
+  // --- nút đăng nhập Google: gọi API serverless ---
   const handleGoogleLogin = () => {
-    window.location.href = "/api/auth/google/login";
+    window.location.href = '/api/auth/google/login';
   };
 
-  const handleWorkerLogin = (provider: "zalo" | "google") => {
+  const handleWorkerLogin = (provider: 'zalo' | 'google') => {
     login(provider, UserRole.WORKER);
-    navigate("/cs", { replace: true });
+    navigate('/cs', { replace: true });
   };
 
   const handleManagementLogin = (e: React.FormEvent) => {
     e.preventDefault();
     const success = loginWithCredentials(username, password);
-    if (success) navigate("/admin");
-    else setError("Sai tên đăng nhập hoặc mật khẩu");
+    if (success) {
+      navigate('/admin');
+    } else {
+      setError('Sai tên đăng nhập hoặc mật khẩu');
+    }
   };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#f3f4f6] px-4 py-6">
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8 text-center">
-
+      <div className="w-full max-w-md sm:max-w-lg bg-white rounded-2xl shadow-xl px-4 py-6 sm:px-8 sm:py-8 text-center">
         {/* Logo */}
-        <img
-          src="https://cdn0685.cdn4s.com/media/logo/logo.png"
-          className="h-20 mx-auto mb-4"
-        />
+        <div className="flex justify-center mb-6">
+          <img
+            src="https://cdn0685.cdn4s.com/media/logo/logo.png"
+            alt="Olive Food & Services Logo"
+            className="h-24 object-contain"
+          />
+        </div>
 
-        <h1 className="text-2xl font-bold mb-2">Olive Food & Services</h1>
+        <h1 className="text-3xl font-bold text-gray-800 mb-2">
+          Olive Food & Services
+        </h1>
         <p className="text-gray-500 mb-6">
           Hệ thống quản lý suất ăn công nghiệp
         </p>
 
-        {/* Tabs */}
+        {/* Tab switcher */}
         <div className="flex bg-gray-100 rounded-lg p-1 mb-8">
           <button
-            onClick={() => setActiveTab("worker")}
-            className={`flex-1 py-2 rounded-md ${
-              activeTab === "worker"
-                ? "bg-white text-gray-800 shadow"
-                : "text-gray-500"
+            onClick={() => setActiveTab('worker')}
+            className={`flex-1 py-2 rounded-md text-sm font-medium transition-all ${
+              activeTab === 'worker'
+                ? 'bg-white text-gray-800 shadow-sm'
+                : 'text-gray-500 hover:text-gray-700'
             }`}
           >
             Khách hàng
           </button>
-
           <button
-            onClick={() => setActiveTab("management")}
-            className={`flex-1 py-2 rounded-md ${
-              activeTab === "management"
-                ? "bg-white text-gray-800 shadow"
-                : "text-gray-500"
+            onClick={() => setActiveTab('management')}
+            className={`flex-1 py-2 rounded-md text-sm font-medium transition-all ${
+              activeTab === 'management'
+                ? 'bg-white text-gray-800 shadow-sm'
+                : 'text-gray-500 hover:text-gray-700'
             }`}
           >
             Quản lý / Admin
           </button>
         </div>
 
-        {activeTab === "worker" ? (
-          <div className="space-y-4">
+        {activeTab === 'worker' ? (
+          // --- Tab KHÁCH HÀNG ---
+          <div className="space-y-4 animate-fade-in">
+            <p className="text-sm font-medium text-gray-400 uppercase tracking-wider mb-4">
+              Đăng nhập nhanh
+            </p>
 
-            <p className="text-sm text-gray-400 uppercase">Đăng nhập nhanh</p>
-
+            {/* Zalo login (giữ nguyên logic demo) */}
             <button
-              onClick={() => handleWorkerLogin("zalo")}
-              className="w-full bg-blue-500 text-white py-3 rounded-xl"
+              onClick={() => handleWorkerLogin('zalo')}
+              className="w-full flex items-center justify-center gap-3 bg-blue-500 hover:bg-blue-600 text-white py-3 px-4 rounded-xl font-medium transition-colors"
             >
-              Z Đăng nhập bằng Zalo
+              <div className="font-bold text-xl">Z</div>
+              <span>Đăng nhập bằng Zalo</span>
             </button>
 
+            {/* Google login – gọi API OAuth */}
             <button
               onClick={handleGoogleLogin}
-              className="w-full border py-3 rounded-xl"
+              className="w-full mt-3 flex items-center justify-center rounded-xl border border-gray-300 py-3 text-gray-700 hover:bg-gray-50 transition"
             >
               Đăng nhập bằng Google
             </button>
           </div>
         ) : (
-          <form onSubmit={handleManagementLogin} className="space-y-4">
+          // --- Tab QUẢN LÝ / ADMIN ---
+          <form
+            onSubmit={handleManagementLogin}
+            className="space-y-4 animate-fade-in"
+          >
+            <p className="text-sm font-medium text-gray-400 uppercase tracking-wider mb-4">
+              Đăng nhập hệ thống
+            </p>
 
             <div className="text-left">
-              <label className="text-sm">Username</label>
-              <input
-                className="w-full border rounded-xl p-3"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-              />
+              <label className="block text-xs font-medium text-gray-500 mb-1">
+                Username
+              </label>
+              <div className="relative">
+                <input
+                  type="text"
+                  className="w-full pl-3 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#FF6B00] outline-none"
+                  placeholder="username"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                />
+              </div>
             </div>
 
             <div className="text-left">
-              <label className="text-sm">Mật khẩu</label>
-              <input
-                type="password"
-                className="w-full border rounded-xl p-3"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
+              <label className="block text-xs font-medium text-gray-500 mb-1">
+                Mật khẩu
+              </label>
+              <div className="relative">
+                <input
+                  type="password"
+                  className="w-full pl-3 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#FF6B00] outline-none"
+                  placeholder="••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+              </div>
             </div>
 
-            {error && <p className="text-red-500">{error}</p>}
+            {error && (
+              <p className="text-red-500 text-sm text-left">{error}</p>
+            )}
 
             <button
               type="submit"
-              className="w-full bg-orange-500 text-white py-3 rounded-xl"
+              className="w-full flex items-center justify-center gap-2 bg-[#FF6B00] hover:bg-[#E66000] text-white py-3 px-4 rounded-xl font-medium transition-colors mt-2"
             >
-              Đăng nhập
+              <span>Đăng nhập</span>
             </button>
           </form>
         )}
