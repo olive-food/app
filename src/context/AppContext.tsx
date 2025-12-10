@@ -26,7 +26,14 @@ interface AppContextType {
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
-
+export interface User {
+  id: string;
+  name: string;
+  avatar: string;
+  role: UserRole;
+  email?: string | null;
+  provider?: 'zalo' | 'google';
+}
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [users, setUsers] = useState<User[]>(MOCK_USERS);
@@ -42,14 +49,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, []);
 
-  const login = (provider: 'zalo' | 'google', role: UserRole = UserRole.WORKER) => {
-    // Quick login for customers (formerly workers)
-    const user: User = {
-        id: `worker_${Date.now()}`,
-        name: `Khách hàng (${provider === 'zalo' ? 'Zalo' : 'Google'})`,
-        avatar: `https://ui-avatars.com/api/?name=Customer&background=random`,
-        role: UserRole.WORKER
-    };
+const login = (
+  provider: 'zalo' | 'google',
+  role: UserRole = UserRole.WORKER,
+  profile?: { id?: string; name?: string; email?: string; picture?: string }
+) => {
+  const user: User = {
+    id: profile?.id ?? `worker_${Date.now()}`,
+    name:
+      profile?.name ??
+      `Khách hàng (${provider === 'zalo' ? 'Zalo' : 'Google'})`,
+    avatar:
+      profile?.picture ??
+      `https://ui-avatars.com/api/?name=${encodeURIComponent(
+        profile?.name || 'Worker'
+      )}&background=random`,
+    role,
+    email: profile?.email ?? null,
+    provider,
+  };
     setCurrentUser(user);
     sessionStorage.setItem('olive_user', JSON.stringify(user));
   };

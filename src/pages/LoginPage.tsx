@@ -3,7 +3,22 @@ import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { Mail, Lock, User as UserIcon, ArrowRight } from 'lucide-react';
 import { UserRole } from '../types';
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const googleUserParam = params.get('googleUser');
 
+    if (googleUserParam) {
+      try {
+        const profile = JSON.parse(decodeURIComponent(googleUserParam));
+        console.log('Google profile:', profile);
+
+        // Đăng nhập bằng thông tin thật
+        login('google', UserRole.WORKER, {
+          id: profile.id,
+          name: profile.name,
+          email: profile.email,
+          picture: profile.picture,
+        });
 export const LoginPage: React.FC = () => {
   const { login, loginWithCredentials } = useApp();
   const navigate = useNavigate();
