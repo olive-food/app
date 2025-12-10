@@ -1,8 +1,21 @@
 const handleGoogleLogin = () => {
   window.location.href = '/api/auth/google/login';
 };
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+const location = useLocation();
+const params = new URLSearchParams(location.search);
+const googleUserParam = params.get('googleUser');
+
+let googleUser: { email: string; name: string; picture: string } | null = null;
+if (googleUserParam) {
+  try {
+    googleUser = JSON.parse(decodeURIComponent(googleUserParam));
+    console.log('Google user:', googleUser);
+  } catch (e) {
+    console.error(e);
+  }
+}
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { Mail, Lock, User as UserIcon, ArrowRight } from 'lucide-react';
 import { UserRole } from '../types';
@@ -11,6 +24,19 @@ export const LoginPage: React.FC = () => {
   const { login, loginWithCredentials } = useApp();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'worker' | 'management'>('worker');
+  const location = useLocation();
+
+  // Nếu vừa được redirect từ Google (googleLogin=1)
+  // thì gọi login('google') và chuyển vào màn bên trong
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const googleLogin = params.get('googleLogin');
+
+    if (googleLogin === '1') {
+      // Tạo user WORKER giả lập bằng Google (logic nằm trong AppContext.login)
+      login('google');
+    }
+  }, [location.search, login, navigate]);
 
   // Credentials state
   const [username, setUsername] = useState('');
@@ -19,7 +45,7 @@ export const LoginPage: React.FC = () => {
 
   const handleWorkerLogin = (provider: 'zalo' | 'google') => {
     login(provider, UserRole.WORKER);
-    navigate('/cs');
+    navigate('/cs', { replace: true });
   };
 
   const handleManagementLogin = (e: React.FormEvent) => {

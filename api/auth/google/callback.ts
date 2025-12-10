@@ -17,7 +17,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    // 1. Đổi code lấy access_token
+    // Đổi code lấy access_token (bắt buộc phải làm để Google chấp nhận flow)
     const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -31,30 +31,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
 
     const tokenData = await tokenRes.json() as any;
-    const accessToken = tokenData.access_token as string | undefined;
 
-    if (!accessToken) {
+    if (!tokenData.access_token) {
       console.error('Token error:', tokenData);
       res.status(500).send('Failed to get access token');
       return;
     }
 
-    // 2. Lấy thông tin user
-    const userRes = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    });
+    // (Có thể gọi API user info nếu muốn, hiện tại mình chưa dùng tới)
+    // const userRes = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+    //   headers: { Authorization: `Bearer ${tokenData.access_token}` },
+    // });
+    // const user = await userRes.json();
 
-    const user = await userRes.json() as any;
-
-    // 3. Tạm thời: redirect về frontend kèm theo info đơn giản
-    const payload = encodeURIComponent(JSON.stringify({
-      email: user.email,
-      name: user.name,
-      picture: user.picture,
-    }));
-
-    // Sau này có thể tạo JWT, lưu cookie, v.v. ở đây
-    res.writeHead(302, { Location: `/#/login?googleUser=${payload}` });
+    // 👉 Thành công rồi thì quay về login, kèm cờ googleLogin=1
+    res.writeHead(302, { Location: '/#/login?googleLogin=1' });
     res.end();
   } catch (err) {
     console.error(err);
