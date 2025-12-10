@@ -1,19 +1,3 @@
-const handleGoogleLogin = () => {
-  window.location.href = '/api/auth/google/login';
-};
-const location = useLocation();
-const params = new URLSearchParams(location.search);
-const googleUserParam = params.get('googleUser');
-
-let googleUser: { email: string; name: string; picture: string } | null = null;
-if (googleUserParam) {
-  try {
-    googleUser = JSON.parse(decodeURIComponent(googleUserParam));
-    console.log('Google user:', googleUser);
-  } catch (e) {
-    console.error(e);
-  }
-}
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
@@ -57,7 +41,9 @@ export const LoginPage: React.FC = () => {
         setError('Sai tên đăng nhập hoặc mật khẩu');
     }
   };
-
+const handleGoogleLogin = () => {
+  window.location.href = '/api/auth/google/login';
+};
   return (
   <div className="min-h-screen flex items-center justify-center bg-[#f3f4f6] px-4 py-6">
     <div className="w-full max-w-md sm:max-w-lg bg-white rounded-2xl shadow-xl px-4 py-6 sm:px-8 sm:py-8 text-center">

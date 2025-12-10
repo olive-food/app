@@ -17,7 +17,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    // Đổi code lấy access_token (bắt buộc phải làm để Google chấp nhận flow)
+    // Bắt buộc phải đổi code lấy access_token để Google chấp nhận flow OAuth
     const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -38,13 +38,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return;
     }
 
-    // (Có thể gọi API user info nếu muốn, hiện tại mình chưa dùng tới)
-    // const userRes = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
-    //   headers: { Authorization: `Bearer ${tokenData.access_token}` },
-    // });
-    // const user = await userRes.json();
+    // (Tạm thời không cần lấy user info, sau mình bổ sung sau)
 
-    // 👉 Thành công rồi thì quay về login, kèm cờ googleLogin=1
+    // ✅ THÀNH CÔNG → quay lại login với cờ googleLogin=1
     res.writeHead(302, { Location: '/#/login?googleLogin=1' });
     res.end();
   } catch (err) {
