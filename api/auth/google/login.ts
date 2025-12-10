@@ -1,31 +1,28 @@
 // api/auth/google/login.ts
-import type { VercelRequest, VercelResponse } from '@vercel/node';
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export default function handler(req: any, res: any) {
   const clientId = process.env.GOOGLE_CLIENT_ID;
+
   if (!clientId) {
-    res.status(500).send('Missing GOOGLE_CLIENT_ID');
+    console.error("Missing GOOGLE_CLIENT_ID env");
+    res.statusCode = 500;
+    res.end("Missing GOOGLE_CLIENT_ID");
     return;
   }
 
- const redirectUri = 'https://app.olive.com.vn/api/auth/google/callback'; // khi deploy sẽ sửa thành app.olive.com.vn
-  const scope = [
-    'openid',
-    'email',
-    'profile',
-  ].join(' ');
+  // Redirect URI dùng cho cả login & callback – phải trùng với cấu hình trên Google
+  const redirectUri = "https://app.olive.com.vn/api/auth/google/callback";
 
-  const params = new URLSearchParams({
-    client_id: clientId,
-    redirect_uri: redirectUri,
-    response_type: 'code',
-    scope,
-    access_type: 'offline',
-    prompt: 'consent',
+  const authUrl = new URL("https://accounts.google.com/o/oauth2/v2/auth");
+  authUrl.searchParams.set("client_id", clientId);
+  authUrl.searchParams.set("redirect_uri", redirectUri);
+  authUrl.searchParams.set("response_type", "code");
+  authUrl.searchParams.set("scope", "openid email profile");
+  authUrl.searchParams.set("access_type", "online");
+  authUrl.searchParams.set("prompt", "select_account");
+
+  res.writeHead(302, {
+    Location: authUrl.toString(),
   });
-
-  const googleAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
-
-  res.writeHead(302, { Location: googleAuthUrl });
   res.end();
 }
