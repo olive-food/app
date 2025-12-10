@@ -1,4 +1,4 @@
-const { google } = require('googleapis');
+import { google } from 'googleapis';
 
 const clientId = process.env.GOOGLE_CLIENT_ID;
 const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
@@ -9,9 +9,12 @@ const redirectUri =
 
 const oauth2Client = new google.auth.OAuth2(clientId, clientSecret, redirectUri);
 
-module.exports = async (req, res) => {
+export default async function handler(req, res) {
   try {
-    const url = new URL(req.url, `http://${req.headers.host}`);
+    // Tạo URL object để lấy tham số
+    // Lưu ý: Trên Vercel production nên ưu tiên https
+    const protocol = req.headers['x-forwarded-proto'] || 'http';
+    const url = new URL(req.url, `${protocol}://${req.headers.host}`);
     const code = url.searchParams.get('code');
 
     if (!code) {
@@ -44,8 +47,8 @@ module.exports = async (req, res) => {
     res.writeHead(302, { Location: redirectUrl });
     res.end();
   } catch (err) {
-    console.error(err);
+    console.error('Google callback error:', err);
     res.statusCode = 500;
     res.end('Google callback error');
   }
-};
+}
