@@ -1,3 +1,6 @@
+const handleGoogleLogin = () => {
+  window.location.href = '/api/auth/google/login';
+};
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
@@ -8,7 +11,7 @@ export const LoginPage: React.FC = () => {
   const { login, loginWithCredentials } = useApp();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'worker' | 'management'>('worker');
-  
+
   // Credentials state
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -30,8 +33,8 @@ export const LoginPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-[#f3f4f6] p-4">
-      <div className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md text-center">
+  <div className="min-h-screen flex items-center justify-center bg-[#f3f4f6] px-4 py-6">
+    <div className="w-full max-w-md sm:max-w-lg bg-white rounded-2xl shadow-xl px-4 py-6 sm:px-8 sm:py-8 text-center">
         <div className="flex justify-center mb-6">
             <img 
               src="https://cdn0685.cdn4s.com/media/logo/logo.png" 
@@ -69,11 +72,11 @@ export const LoginPage: React.FC = () => {
                     <span>Đăng nhập bằng Zalo</span>
                 </button>
                 <button
-                    onClick={() => handleWorkerLogin('google')}
-                    className="w-full flex items-center justify-center gap-3 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 py-3 px-4 rounded-xl font-medium transition-colors"
-                >
-                    <Mail size={20} />
-                    <span>Đăng nhập bằng Google</span>
+                     onClick={handleGoogleLogin}
+                        className="w-full mt-3 flex items-center justify-center rounded-xl border border-gray-300 py-3 text-gray-700 hover:bg-gray-50 transition"
+                        >
+                 {/* icon + text như cũ */}
+                     Đăng nhập bằng Google
                 </button>
             </div>
         ) : (
