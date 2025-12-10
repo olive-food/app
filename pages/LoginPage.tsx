@@ -2,10 +2,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
+import { Lock, User as UserIcon, ArrowRight } from 'lucide-react';
 import { UserRole } from '../types';
 
 export const LoginPage: React.FC = () => {
-  const { login, loginWithCredentials } = useApp();
+  const { login, loginWithCredentials, setGoogleUser } = useApp();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -14,7 +15,7 @@ export const LoginPage: React.FC = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
 
-  // --- GOOGLE OAUTH: đọc googleUser, auto login & chuyển vào /cs ---
+  // 👉 Auto-login khi có ?googleUser=... (sau khi callback Google redirect về)
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const googleUserParam = params.get('googleUser');
@@ -22,34 +23,43 @@ export const LoginPage: React.FC = () => {
     if (googleUserParam) {
       try {
         const decoded = decodeURIComponent(googleUserParam);
-        const googleUser = JSON.parse(decoded);
-        console.log('Google user from OAuth:', googleUser);
+        const payload = JSON.parse(decoded) as {
+          id: string;
+          email: string;
+          name: string;
+          picture?: string;
+        };
+
+        console.log('Google user payload:', payload);
+        setGoogleUser(payload); // lưu vào context + localStorage
+
+        // Điều hướng sang /cs
+        navigate('/cs', { replace: true });
+
+        // Xoá query khỏi URL (để F5 không lặp lại)
+        const cleanUrl = `${window.location.origin}/#/cs`;
+        window.history.replaceState({}, '', cleanUrl);
       } catch (err) {
         console.error('Failed to parse googleUser param', err);
       }
-
-      // Đăng nhập nhanh với provider "google"
-      login('google', UserRole.WORKER);
-      // Chuyển sang màn "Truy cập bếp ăn"
-      navigate('/cs', { replace: true });
     }
-  }, [location.search, login, navigate]);
+  }, [location.search, setGoogleUser, navigate]);
 
-  // --- nút đăng nhập Google: gọi API serverless ---
-  const handleGoogleLogin = () => {
-    window.location.href = '/api/auth/google/login';
+  const handleWorkerLoginZalo = () => {
+    login('zalo', UserRole.WORKER);
+    navigate('/cs', { replace: true });
   };
 
-  const handleWorkerLogin = (provider: 'zalo' | 'google') => {
-    login(provider, UserRole.WORKER);
-    navigate('/cs', { replace: true });
+  const handleGoogleLoginClick = () => {
+    // gọi serverless function Google OAuth
+    window.location.href = '/api/auth/google/login';
   };
 
   const handleManagementLogin = (e: React.FormEvent) => {
     e.preventDefault();
     const success = loginWithCredentials(username, password);
     if (success) {
-      navigate('/admin');
+      navigate('/admin', { replace: true });
     } else {
       setError('Sai tên đăng nhập hoặc mật khẩu');
     }
@@ -58,7 +68,6 @@ export const LoginPage: React.FC = () => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#f3f4f6] px-4 py-6">
       <div className="w-full max-w-md sm:max-w-lg bg-white rounded-2xl shadow-xl px-4 py-6 sm:px-8 sm:py-8 text-center">
-        {/* Logo */}
         <div className="flex justify-center mb-6">
           <img
             src="https://cdn0685.cdn4s.com/media/logo/logo.png"
@@ -66,7 +75,6 @@ export const LoginPage: React.FC = () => {
             className="h-24 object-contain"
           />
         </div>
-
         <h1 className="text-3xl font-bold text-gray-800 mb-2">
           Olive Food & Services
         </h1>
@@ -74,7 +82,7 @@ export const LoginPage: React.FC = () => {
           Hệ thống quản lý suất ăn công nghiệp
         </p>
 
-        {/* Tab switcher */}
+        {/* Tab Khách hàng / Quản lý */}
         <div className="flex bg-gray-100 rounded-lg p-1 mb-8">
           <button
             onClick={() => setActiveTab('worker')}
@@ -99,31 +107,29 @@ export const LoginPage: React.FC = () => {
         </div>
 
         {activeTab === 'worker' ? (
-          // --- Tab KHÁCH HÀNG ---
           <div className="space-y-4 animate-fade-in">
             <p className="text-sm font-medium text-gray-400 uppercase tracking-wider mb-4">
               Đăng nhập nhanh
             </p>
 
-            {/* Zalo login (giữ nguyên logic demo) */}
+            {/* Zalo (fake) */}
             <button
-              onClick={() => handleWorkerLogin('zalo')}
+              onClick={handleWorkerLoginZalo}
               className="w-full flex items-center justify-center gap-3 bg-blue-500 hover:bg-blue-600 text-white py-3 px-4 rounded-xl font-medium transition-colors"
             >
               <div className="font-bold text-xl">Z</div>
               <span>Đăng nhập bằng Zalo</span>
             </button>
 
-            {/* Google login – gọi API OAuth */}
+            {/* Google OAuth thật */}
             <button
-              onClick={handleGoogleLogin}
+              onClick={handleGoogleLoginClick}
               className="w-full mt-3 flex items-center justify-center rounded-xl border border-gray-300 py-3 text-gray-700 hover:bg-gray-50 transition"
             >
               Đăng nhập bằng Google
             </button>
           </div>
         ) : (
-          // --- Tab QUẢN LÝ / ADMIN ---
           <form
             onSubmit={handleManagementLogin}
             className="space-y-4 animate-fade-in"
@@ -139,10 +145,14 @@ export const LoginPage: React.FC = () => {
               <div className="relative">
                 <input
                   type="text"
-                  className="w-full pl-3 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#FF6B00] outline-none"
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#FF6B00] outline-none"
                   placeholder="username"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
+                />
+                <UserIcon
+                  className="absolute left-3 top-3.5 text-gray-400"
+                  size={18}
                 />
               </div>
             </div>
@@ -154,23 +164,26 @@ export const LoginPage: React.FC = () => {
               <div className="relative">
                 <input
                   type="password"
-                  className="w-full pl-3 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#FF6B00] outline-none"
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#FF6B00] outline-none"
                   placeholder="••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                 />
+                <Lock
+                  className="absolute left-3 top-3.5 text-gray-400"
+                  size={18}
+                />
               </div>
             </div>
 
-            {error && (
-              <p className="text-red-500 text-sm text-left">{error}</p>
-            )}
+            {error && <p className="text-red-500 text-sm">{error}</p>}
 
             <button
               type="submit"
               className="w-full flex items-center justify-center gap-2 bg-[#FF6B00] hover:bg-[#E66000] text-white py-3 px-4 rounded-xl font-medium transition-colors mt-2"
             >
               <span>Đăng nhập</span>
+              <ArrowRight size={18} />
             </button>
           </form>
         )}

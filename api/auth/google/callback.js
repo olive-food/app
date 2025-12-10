@@ -1,78 +1,51 @@
-// api/auth/google/callback.js
+const { google } = require('googleapis');
 
-export default async function handler(req, res) {
-  const code = req.query && req.query.code;
-  const clientId = process.env.GOOGLE_CLIENT_ID;
-  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-  const redirectUri =
-    process.env.GOOGLE_REDIRECT_URI ||
-    "https://app.olive.com.vn/api/auth/google/callback";
+const clientId = process.env.GOOGLE_CLIENT_ID;
+const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+const redirectUri =
+  process.env.VERCEL_ENV === 'development'
+    ? 'http://localhost:3000/api/auth/google/callback'
+    : 'https://app.olive.com.vn/api/auth/google/callback';
 
-  if (!code) {
-    res.statusCode = 400;
-    res.end("Missing code");
-    return;
-  }
+const oauth2Client = new google.auth.OAuth2(clientId, clientSecret, redirectUri);
 
-  if (!clientId || !clientSecret) {
-    console.error("Missing GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET");
-    res.statusCode = 500;
-    res.end("Missing GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET");
-    return;
-  }
-
+module.exports = async (req, res) => {
   try {
-    // 1. Đổi code sang access_token
-    const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({
-        code,
-        client_id: clientId,
-        client_secret: clientSecret,
-        redirect_uri: redirectUri,
-        grant_type: "authorization_code",
-      }).toString(),
-    });
+    const url = new URL(req.url, `http://${req.headers.host}`);
+    const code = url.searchParams.get('code');
 
-    const tokenData = await tokenRes.json();
-
-    if (!tokenData.access_token) {
-      console.error("Token error:", tokenData);
-      res.statusCode = 500;
-      res.end("Failed to get access token");
-      return;
+    if (!code) {
+      res.statusCode = 400;
+      return res.end('Missing code');
     }
 
-    // 2. Lấy thông tin user từ Google
-    const userRes = await fetch(
-      "https://www.googleapis.com/oauth2/v2/userinfo",
-      {
-        headers: {
-          Authorization: `Bearer ${tokenData.access_token}`,
-        },
-      }
-    );
+    const { tokens } = await oauth2Client.getToken(code);
+    oauth2Client.setCredentials(tokens);
 
-    const googleUser = await userRes.json();
+    const oauth2 = google.oauth2({ auth: oauth2Client, version: 'v2' });
+    const { data } = await oauth2.userinfo.get();
 
-    // 3. Gửi profile về frontend qua query
-    const payload = encodeURIComponent(
-      JSON.stringify({
-        id: googleUser.id,
-        email: googleUser.email,
-        name: googleUser.name,
-        picture: googleUser.picture,
-      })
-    );
+    const googleUser = {
+      id: data.id,
+      email: data.email,
+      name: data.name,
+      picture: data.picture,
+    };
 
-    res.writeHead(302, {
-      Location: `/#/login?googleUser=${payload}`,
-    });
+    const clientBaseUrl =
+      process.env.VERCEL_ENV === 'development'
+        ? 'http://localhost:3000'
+        : 'https://app.olive.com.vn';
+
+    const redirectUrl = `${clientBaseUrl}/#/cs?googleUser=${encodeURIComponent(
+      JSON.stringify(googleUser)
+    )}`;
+
+    res.writeHead(302, { Location: redirectUrl });
     res.end();
   } catch (err) {
-    console.error("Google callback error:", err);
+    console.error(err);
     res.statusCode = 500;
-    res.end("Internal Server Error");
+    res.end('Google callback error');
   }
-}
+};
