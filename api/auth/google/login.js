@@ -2,8 +2,9 @@
 
 export default async function handler(req, res) {
   const clientId = process.env.GOOGLE_CLIENT_ID;
-  const redirectUri = process.env.GOOGLE_REDIRECT_URI 
-    || "https://app.olive.com.vn/api/auth/google/callback";
+  const redirectUri =
+    process.env.GOOGLE_REDIRECT_URI ||
+    "https://app.olive.com.vn/api/auth/google/callback";
 
   if (!clientId) {
     console.error("Missing GOOGLE_CLIENT_ID");
