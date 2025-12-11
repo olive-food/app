@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react'; // 👈 Thêm useRef
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useApp } from '../../context/AppContext'; 
-import { UserRole } from '../../types'; // Cần thêm để sử dụng UserRole.WORKER
+import { UserRole } from '../../types'; // Đảm bảo đã import UserRole
 import { Search, AlertCircle } from 'lucide-react';
 
 // Định nghĩa kiểu dữ liệu cho user lấy từ Google URL
@@ -13,22 +13,22 @@ interface GoogleUser {
 }
 
 export const CompanySelection: React.FC = () => {
-// Lấy biến 'user' và hàm 'login' trực tiếp từ AppContext
-const { kitchens, user, login } = useApp();
+    // Lấy biến 'user' (thông tin người dùng hiện tại) và hàm 'login' trực tiếp từ AppContext
+    const { kitchens, user, login } = useApp();
     
     const [code, setCode] = useState('');
     const [error, setError] = useState('');
     const navigate = useNavigate();
     const location = useLocation();
     
-    // 🌟 Dùng useRef để đảm bảo logic chỉ chạy 1 lần duy nhất
+    // Dùng useRef để đảm bảo logic xử lý Google User chỉ chạy 1 lần duy nhất
     const hasProcessedGoogleUser = useRef(false);
 
-    // 🌟 LOGIC CHÍNH: Xử lý đăng nhập Google
+    // LOGIC CHÍNH: Xử lý đăng nhập Google từ tham số URL
     useEffect(() => {
-        // Kiểm tra để tránh chạy logic nhiều lần không cần thiết
-        if (currentUser) return; // Nếu user đã có trong Context, bỏ qua
-        if (hasProcessedGoogleUser.current) return; // Nếu đã xử lý lần trước, bỏ qua
+        // 1. Kiểm tra: Nếu user đã có trong Context, hoặc đã xử lý rồi thì thoát (ngăn lỗi ReferenceError)
+        if (user) return; 
+        if (hasProcessedGoogleUser.current) return; 
         
         const params = new URLSearchParams(location.search);
         const googleUserEncoded = params.get('googleUser');
@@ -37,16 +37,14 @@ const { kitchens, user, login } = useApp();
             hasProcessedGoogleUser.current = true; // Đánh dấu đã xử lý
             
             try {
-                // 1. Giải mã và phân tích cú pháp JSON
+                // Giải mã và phân tích cú pháp JSON
                 const decodedJson = decodeURIComponent(googleUserEncoded);
                 const userData: GoogleUser = JSON.parse(decodedJson);
                 
-                // 2. Gọi hàm login để cập nhật State và Local Storage
-                // Chúng ta gán role WORKER cho user Google (Dùng hằng số UserRole.WORKER)
+                // Gọi hàm login để cập nhật State và Local Storage
                 login('google', UserRole.WORKER, userData); 
                 
-                // 3. Dọn dẹp URL: Xóa tham số googleUser khỏi URL 
-                // Quan trọng: Chỉ xóa tham số, không chuyển hướng sang trang khác
+                // Dọn dẹp URL: Xóa tham số googleUser khỏi URL (Không chuyển hướng)
                 navigate(location.pathname, { replace: true }); 
 
             } catch (error) {
@@ -55,14 +53,15 @@ const { kitchens, user, login } = useApp();
                 navigate(location.pathname, { replace: true });
             }
         }
-    }, [location.search, navigate, login, currentUser]); 
+    // Dependency array: Bao gồm 'user' để React biết khi nào nên chạy lại (khi user thay đổi)
+    }, [location.search, navigate, login, user]); 
 
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
         const kitchen = kitchens.find(k => k.slug.toLowerCase() === code.toLowerCase());
         if (kitchen) {
-            // Khi tìm thấy bếp, user đã được lưu vào Context, chuyển user vào bếp
+            // Khi tìm thấy bếp, chuyển user vào bếp
             navigate(`/cs/${kitchen.slug}`);
         } else {
             setError('Không tìm thấy bếp với mã này. Vui lòng kiểm tra lại.');
@@ -75,13 +74,14 @@ const { kitchens, user, login } = useApp();
             <div className="bg-[#FF6B00] text-white p-6 rounded-b-3xl shadow-lg mb-6">
                 <div className="flex items-center gap-3 mb-2">
                     <img 
-                        // Hiển thị thông tin user đã được lưu trong Context
+                        // Hiển thị Avatar (ưu tiên picture từ Google, nếu không thì avatar cũ)
                         src={user?.avatar || user?.picture || 'https://via.placeholder.com/40'} 
                         alt="User" 
                         className="w-10 h-10 rounded-full border-2 border-white"
                     />
                     <div>
                         <p className="text-xs opacity-80">Xin chào,</p>
+                        {/* Hiển thị Tên người dùng */}
                         <p className="font-bold text-lg">{user?.name || 'Bạn'}</p>
                     </div>
                 </div>
@@ -89,7 +89,7 @@ const { kitchens, user, login } = useApp();
                 <p className="text-sm opacity-90">Vui lòng nhập mã bếp hoặc truy cập link do công ty cung cấp.</p>
             </div>
 
-            {/* Access Form: Giữ nguyên logic hiển thị form */}
+            {/* Access Form */}
             <div className="px-4 w-full max-w-md mx-auto flex-1 flex flex-col items-center">
                 <div className="bg-white p-6 rounded-2xl shadow-sm w-full">
                     <form onSubmit={handleSearch} className="space-y-4">
