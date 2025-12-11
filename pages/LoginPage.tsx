@@ -1,6 +1,6 @@
 // pages/LoginPage.tsx
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { Lock, User as UserIcon, ArrowRight } from 'lucide-react';
 import { UserRole } from '../types';
@@ -8,25 +8,60 @@ import { UserRole } from '../types';
 export const LoginPage: React.FC = () => {
   const { login, loginWithCredentials } = useApp();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [activeTab, setActiveTab] = useState<'worker' | 'management'>('worker');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
 
-  // Người dùng bấm nút Google
+  // =========================================================
+  // 1. Xử lý GOOGLE CALLBACK: ?googleUser=... trên URL
+  //    -> Tự động đăng nhập + chuyển sang /cs
+  // =========================================================
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const googleUserParam = params.get('googleUser');
+
+    if (!googleUserParam) return;
+
+    try {
+      // googleUserParam đang là chuỗi JSON đã encode, ví dụ: %7B%22id%22...
+      const decoded = decodeURIComponent(googleUserParam);
+      const profile = JSON.parse(decoded); // { id, email, name, picture }
+
+      // Đăng nhập với provider "google" + truyền profile để lấy đúng tên + avatar
+      login('google', UserRole.WORKER, profile);
+
+      // Chuyển sang trang chọn bếp / menu
+      navigate('/cs', { replace: true });
+
+      // Xoá query khỏi URL cho sạch: giữ lại /#/cs
+      const cleanUrl = `${window.location.origin}/#/cs`;
+      window.history.replaceState({}, '', cleanUrl);
+    } catch (e) {
+      console.error('Error handling googleUser callback:', e);
+      // Nếu có lỗi thì xoá query và để người dùng ở lại màn hình login
+      const cleanUrl = `${window.location.origin}/#/login`;
+      window.history.replaceState({}, '', cleanUrl);
+    }
+  }, [location.search, login, navigate]);
+
+  // =========================================================
+  // 2. Người dùng bấm nút Google
+  // =========================================================
   const handleGoogleLogin = () => {
     // Gửi sang API backend để bắt đầu luồng OAuth
     window.location.href = '/api/auth/google/login';
   };
 
-  // Người dùng bấm nút Zalo (login giả lập)
+  // 3. Người dùng bấm nút Zalo (login giả lập)
   const handleZaloLogin = () => {
     login('zalo', UserRole.WORKER);
     navigate('/cs');
   };
 
-  // Đăng nhập quản lý (username + password)
+  // 4. Đăng nhập quản lý (username + password)
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -40,6 +75,9 @@ export const LoginPage: React.FC = () => {
     navigate('/admin');
   };
 
+  // =========================================================
+  // 5. Giao diện (logo + màu cam)
+  // =========================================================
   return (
     <div className="min-h-screen flex items-center justify-center bg-white">
       <div className="w-full max-w-md bg-white border border-orange-100 shadow-sm rounded-3xl p-6">
