@@ -1,29 +1,23 @@
-// api/auth/google/login.js
+const { google } = require('googleapis');
 
-export default async function handler(req, res) {
-  const clientId = process.env.GOOGLE_CLIENT_ID;
-  const redirectUri =
-    process.env.GOOGLE_REDIRECT_URI ||
-    "https://app.olive.com.vn/api/auth/google/callback";
+const clientId = process.env.GOOGLE_CLIENT_ID;
+const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+const redirectUri =
+  process.env.VERCEL_ENV === 'development'
+    ? 'http://localhost:3000/api/auth/google/callback'
+    : 'https://app.olive.com.vn/api/auth/google/callback';
 
-  if (!clientId) {
-    console.error("Missing GOOGLE_CLIENT_ID");
-    res.statusCode = 500;
-    res.end("Missing GOOGLE_CLIENT_ID");
-    return;
-  }
+const oauth2Client = new google.auth.OAuth2(clientId, clientSecret, redirectUri);
 
-  const authUrl =
-    "https://accounts.google.com/o/oauth2/v2/auth?" +
-    new URLSearchParams({
-      client_id: clientId,
-      redirect_uri: redirectUri,
-      response_type: "code",
-      scope: "openid email profile",
-      access_type: "online",
-      prompt: "select_account",
-    }).toString();
+module.exports = (req, res) => {
+  const scopes = ['openid', 'profile', 'email'];
 
-  res.writeHead(302, { Location: authUrl });
+  const url = oauth2Client.generateAuthUrl({
+    access_type: 'offline',
+    prompt: 'consent',
+    scope: scopes,
+  });
+
+  res.writeHead(302, { Location: url });
   res.end();
-}
+};

@@ -1,213 +1,128 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { User, Kitchen, DailyMenu, SurveyResponse, UserRole } from '../types';
-import { MOCK_KITCHENS, MOCK_USERS, INITIAL_MENUS, INITIAL_SURVEYS } from '../constants';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  ReactNode,
+} from 'react';
+import { UserRole } from '../types';
 
-type GoogleProfile = {
+type LoginProvider = 'google' | 'zalo' | 'manual';
+
+export interface AppUser {
   id?: string;
-  name?: string;
+  name: string;
   email?: string;
-  picture?: string;
-};
+  avatar?: string;
+  provider: LoginProvider;
+  role: UserRole;
+}
 
 interface AppContextType {
-  currentUser: User | null;
-  // ✅ login giờ nhận thêm profile (dùng cho Google)
-  login: (provider: 'zalo' | 'google', role?: UserRole, profile?: GoogleProfile) => void;
-  loginWithCredentials: (username: string, pass: string) => boolean;
+  user: AppUser | null;
+  isAuthenticated: boolean;
+  login: (
+    provider: LoginProvider,
+    role?: UserRole,
+    profile?: {
+      id?: string;
+      email?: string;
+      name?: string;
+      picture?: string;
+    }
+  ) => void;
+  loginWithCredentials: (username: string, password: string) => boolean;
   logout: () => void;
-  kitchens: Kitchen[];
-  menus: DailyMenu[];
-  surveys: SurveyResponse[];
-  addMenu: (menu: DailyMenu) => void;
-  updateMenu: (menu: DailyMenu) => void;
-  addRating: (menuId: string, rating: number) => void;
-  addSurvey: (survey: Omit<SurveyResponse, 'id' | 'userId' | 'date'>) => void;
-  getKitchenBySlug: (slug: string) => Kitchen | undefined;
-
-  // Admin Features
-  addKitchen: (kitchen: Kitchen) => void;
-  updateKitchen: (kitchen: Kitchen) => void;
-  deleteKitchen: (id: string) => void;
-  registerManager: (user: User) => void;
-
-  // Manager Features
-  addWindowToKitchen: (kitchenId: string, windowName: string) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [users, setUsers] = useState<User[]>(MOCK_USERS);
-  const [kitchens, setKitchens] = useState<Kitchen[]>(MOCK_KITCHENS);
-  const [menus, setMenus] = useState<DailyMenu[]>(INITIAL_MENUS);
-  const [surveys, setSurveys] = useState<SurveyResponse[]>(INITIAL_SURVEYS);
+const STORAGE_KEY = 'olive_user';
 
-  // Load user từ sessionStorage (giữ login khi F5)
+function loadUserFromStorage(): AppUser | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as AppUser;
+  } catch (e) {
+    console.error('Failed to read user from localStorage', e);
+    return null;
+  }
+}
+
+export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const [user, setUser] = useState<AppUser | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  // Load user khi mở app / refresh
   useEffect(() => {
-    const storedUser = sessionStorage.getItem('olive_user');
-    if (storedUser) {
-      setCurrentUser(JSON.parse(storedUser));
+    const stored = loadUserFromStorage();
+    if (stored) {
+      setUser(stored);
+      setIsAuthenticated(true);
     }
   }, []);
 
-  // ✅ Login chung: Zalo giả lập, Google dùng profile thật
+  // Hàm login chung cho Google / Zalo / manual
   const login = (
-    provider: 'zalo' | 'google',
+    provider: LoginProvider,
     role: UserRole = UserRole.WORKER,
-    profile?: GoogleProfile
+    profile?: { id?: string; email?: string; name?: string; picture?: string }
   ) => {
-    let user: User;
+    const newUser: AppUser = {
+      id: profile?.id,
+      email: profile?.email,
+      name: profile?.name || 'Công nhân',
+      avatar: profile?.picture,
+      provider,
+      role,
+    };
 
-    if (provider === 'google' && profile) {
-      // Dùng thông tin thật từ Google
-      user = {
-        id: profile.id || `google_${Date.now()}`,
-        name: profile.name || 'Người dùng Google',
-        avatar:
-          profile.picture ||
-          `https://ui-avatars.com/api/?name=${encodeURIComponent(
-            profile.name || 'Google User'
-          )}&background=random`,
-        role,
-      };
-    } else {
-      // Đăng nhập nhanh Zalo (hoặc Google nhưng không có profile)
-      user = {
-        id: `worker_${Date.now()}`,
-        name: `Công nhân (${provider === 'zalo' ? 'Zalo' : 'Google'})`,
-        avatar: `https://ui-avatars.com/api/?name=Worker&background=random`,
-        role: UserRole.WORKER,
-      };
+    setUser(newUser);
+    setIsAuthenticated(true);
+
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(newUser));
     }
-
-    setCurrentUser(user);
-    sessionStorage.setItem('olive_user', JSON.stringify(user));
-
-    // (Tạm) lưu user vào danh sách users trong RAM để sau này admin có thể xem log
-    setUsers((prev) => {
-      const exists = prev.some((u) => u.id === user.id);
-      return exists ? prev : [...prev, user];
-    });
   };
 
-  const loginWithCredentials = (username: string, pass: string): boolean => {
-    const user = users.find((u) => u.username === username && u.password === pass);
-    if (user) {
-      setCurrentUser(user);
-      sessionStorage.setItem('olive_user', JSON.stringify(user));
-      return true;
+  // Đăng nhập quản lý bằng username/password (demo)
+  const loginWithCredentials = (username: string, password: string): boolean => {
+    // Anh có thể thay bằng API thực tế sau này
+    const ok = username === 'admin' && password === 'olive123';
+    if (ok) {
+      const adminUser: AppUser = {
+        id: 'admin',
+        name: 'Admin Olive',
+        provider: 'manual',
+        role: UserRole.ADMIN,
+      };
+      setUser(adminUser);
+      setIsAuthenticated(true);
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(adminUser));
+      }
     }
-    return false;
+    return ok;
   };
 
   const logout = () => {
-    setCurrentUser(null);
-    sessionStorage.removeItem('olive_user');
-  };
-
-  const addMenu = (newMenu: DailyMenu) => {
-    setMenus((prev) => [...prev.filter((m) => m.id !== newMenu.id), newMenu]);
-  };
-
-  const updateMenu = (updatedMenu: DailyMenu) => {
-    setMenus((prev) => {
-      const filtered = prev.filter(
-        (m) =>
-          !(
-            m.kitchenId === updatedMenu.kitchenId &&
-            m.windowNumber === updatedMenu.windowNumber &&
-            m.date === updatedMenu.date
-          ) && m.id !== updatedMenu.id
-      );
-      return [...filtered, updatedMenu];
-    });
-  };
-
-  const addRating = (menuId: string, stars: number) => {
-    if (!currentUser) return;
-    setMenus((prev) =>
-      prev.map((menu) => {
-        if (menu.id === menuId) {
-          return {
-            ...menu,
-            ratings: [...menu.ratings, { userId: currentUser.id, stars, timestamp: Date.now() }],
-          };
-        }
-        return menu;
-      })
-    );
-  };
-
-  const addSurvey = (surveyData: Omit<SurveyResponse, 'id' | 'userId' | 'date'>) => {
-    if (!currentUser) return;
-    const newSurvey: SurveyResponse = {
-      id: `sur_${Date.now()}`,
-      userId: currentUser.id,
-      date: new Date().toISOString().split('T')[0],
-      ...surveyData,
-    };
-    setSurveys((prev) => [...prev, newSurvey]);
-    console.log('SYNC: Data sent to Google Sheet Webhook', newSurvey);
-  };
-
-  const getKitchenBySlug = (slug: string) => {
-    return kitchens.find((k) => k.slug === slug);
-  };
-
-  // --- Admin functions ---
-  const addKitchen = (newKitchen: Kitchen) => {
-    setKitchens((prev) => [...prev, newKitchen]);
-  };
-
-  const updateKitchen = (updatedKitchen: Kitchen) => {
-    setKitchens((prev) => prev.map((k) => (k.id === updatedKitchen.id ? updatedKitchen : k)));
-  };
-
-  const deleteKitchen = (id: string) => {
-    setKitchens((prev) => prev.filter((k) => k.id !== id));
-  };
-
-  const registerManager = (newUser: User) => {
-    setUsers((prev) => [...prev, newUser]);
-  };
-
-  const addWindowToKitchen = (kitchenId: string, windowName: string) => {
-    setKitchens((prev) =>
-      prev.map((k) => {
-        if (k.id === kitchenId) {
-          const nextId = k.windows.length > 0 ? Math.max(...k.windows.map((w) => w.id)) + 1 : 1;
-          return {
-            ...k,
-            totalWindows: k.windows.length + 1,
-            windows: [...k.windows, { id: nextId, name: windowName }],
-          };
-        }
-        return k;
-      })
-    );
+    setUser(null);
+    setIsAuthenticated(false);
+    if (typeof window !== 'undefined') {
+      window.localStorage.removeItem(STORAGE_KEY);
+    }
   };
 
   return (
     <AppContext.Provider
       value={{
-        currentUser,
+        user,
+        isAuthenticated,
         login,
         loginWithCredentials,
         logout,
-        kitchens,
-        menus,
-        surveys,
-        addMenu,
-        updateMenu,
-        addRating,
-        addSurvey,
-        getKitchenBySlug,
-        addKitchen,
-        updateKitchen,
-        deleteKitchen,
-        registerManager,
-        addWindowToKitchen,
       }}
     >
       {children}
@@ -215,8 +130,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   );
 };
 
-export const useApp = () => {
-  const context = useContext(AppContext);
-  if (!context) throw new Error('useApp must be used within AppProvider');
-  return context;
+export const useApp = (): AppContextType => {
+  const ctx = useContext(AppContext);
+  if (!ctx) {
+    throw new Error('useApp must be used inside AppProvider');
+  }
+  return ctx;
 };
