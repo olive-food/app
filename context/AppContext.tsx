@@ -2,18 +2,17 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, Kitchen, DailyMenu, SurveyResponse, UserRole } from '../types';
 import { MOCK_KITCHENS, MOCK_USERS, INITIAL_MENUS, INITIAL_SURVEYS } from '../constants';
 
-// Kiểu dữ liệu đơn giản cho profile lấy từ Google/Zalo
+// Kiểu profile đơn giản (Google/Zalo)
 type BasicProfile = {
   id?: string;
   name?: string;
   picture?: string;
+  email?: string;
 };
 
 interface AppContextType {
   currentUser: User | null;
-  /** Alias cho currentUser để dùng ngắn gọn hơn ở một số component cũ */
-  user: User | null;
-  /** Đăng nhập nhanh cho khách hàng (Zalo/Google). Có thể truyền thêm profile để lấy tên + avatar thật. */
+  user: User | null; // alias
   login: (provider: 'zalo' | 'google', role?: UserRole, profile?: BasicProfile) => void;
   loginWithCredentials: (username: string, pass: string) => boolean;
   logout: () => void;
@@ -25,12 +24,10 @@ interface AppContextType {
   addRating: (menuId: string, rating: number) => void;
   addSurvey: (survey: Omit<SurveyResponse, 'id' | 'userId' | 'date'>) => void;
   getKitchenBySlug: (slug: string) => Kitchen | undefined;
-  // Admin Features
   addKitchen: (kitchen: Kitchen) => void;
   updateKitchen: (kitchen: Kitchen) => void;
   deleteKitchen: (id: string) => void;
   registerManager: (user: User) => void;
-  // Manager Features
   addWindowToKitchen: (kitchenId: string, windowName: string) => void;
 }
 
@@ -43,12 +40,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [menus, setMenus] = useState<DailyMenu[]>(INITIAL_MENUS);
   const [surveys, setSurveys] = useState<SurveyResponse[]>(INITIAL_SURVEYS);
 
-  // 1. Load user từ sessionStorage khi F5 trang
+  // 1. Load user từ sessionStorage khi F5
   useEffect(() => {
-    const storedUser = sessionStorage.getItem('olive_user');
-    if (storedUser) {
+    const stored = sessionStorage.getItem('olive_user');
+    if (stored) {
       try {
-        const parsed: User = JSON.parse(storedUser);
+        const parsed: User = JSON.parse(stored);
         setCurrentUser(parsed);
       } catch {
         sessionStorage.removeItem('olive_user');
@@ -56,13 +53,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, []);
 
-  // 2. Đăng nhập nhanh cho khách hàng (Google / Zalo)
+  // 2. Đăng nhập nhanh (Google/Zalo)
   const login = (
     provider: 'zalo' | 'google',
     role: UserRole = UserRole.WORKER,
     profile?: BasicProfile
   ) => {
-    // Nếu có dữ liệu thật từ Google/Zalo thì dùng, không thì tạo tên giả lập
     const displayName =
       profile?.name ||
       (role === UserRole.WORKER
@@ -108,7 +104,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const updateMenu = (updatedMenu: DailyMenu) => {
     setMenus((prev) => {
-      // Remove existing menu cho cùng ngày/cửa/bếp để thay thế
       const filtered = prev.filter(
         (m) =>
           !(
@@ -124,18 +119,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const addRating = (menuId: string, stars: number) => {
     if (!currentUser) return;
     setMenus((prev) =>
-      prev.map((menu) => {
-        if (menu.id === menuId) {
-          return {
-            ...menu,
-            ratings: [
-              ...menu.ratings,
-              { userId: currentUser.id, stars, timestamp: Date.now() },
-            ],
-          };
-        }
-        return menu;
-      })
+      prev.map((menu) =>
+        menu.id === menuId
+          ? {
+              ...menu,
+              ratings: [
+                ...menu.ratings,
+                { userId: currentUser.id, stars, timestamp: Date.now() },
+              ],
+            }
+          : menu
+      )
     );
   };
 
@@ -155,7 +149,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return kitchens.find((k) => k.slug === slug);
   };
 
-  // --- Admin Functions ---
   const addKitchen = (newKitchen: Kitchen) => {
     setKitchens((prev) => [...prev, newKitchen]);
   };
@@ -193,7 +186,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     <AppContext.Provider
       value={{
         currentUser,
-        user: currentUser, // alias cho các component cũ
+        user: currentUser,
         login,
         loginWithCredentials,
         logout,

@@ -1,6 +1,5 @@
-// pages/LoginPage.tsx
-import React, { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { Lock, User as UserIcon, ArrowRight } from 'lucide-react';
 import { UserRole } from '../types';
@@ -8,57 +7,21 @@ import { UserRole } from '../types';
 export const LoginPage: React.FC = () => {
   const { login, loginWithCredentials } = useApp();
   const navigate = useNavigate();
-  const location = useLocation();
 
   const [activeTab, setActiveTab] = useState<'worker' | 'management'>('worker');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
 
-  // =========================================================
-  // 1. Xử lý GOOGLE CALLBACK: ?googleUser=... trên URL
-  //    -> Tự động đăng nhập + CHUYỂN HẲN SANG /cs (reload app)
-  // =========================================================
-  useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    const googleUserParam = params.get('googleUser');
-
-    if (!googleUserParam) return;
-
-    try {
-      const decoded = decodeURIComponent(googleUserParam);
-      const profile = JSON.parse(decoded); // { id, email, name, picture }
-
-      // Lưu user vào context + sessionStorage
-      login('google', UserRole.WORKER, profile);
-
-      // 👉 Dùng reload toàn trang cho chắc: chuyển thẳng sang /#/cs
-      const target = `${window.location.origin}/#/cs`;
-      window.location.href = target;
-    } catch (e) {
-      console.error('Error handling googleUser callback:', e);
-      // Nếu lỗi thì quay lại /login (reload luôn cho sạch)
-      const target = `${window.location.origin}/#/login`;
-      window.location.href = target;
-    }
-  }, [location.search, login]);
-
-  // =========================================================
-  // 2. Người dùng bấm nút Google
-  // =========================================================
   const handleGoogleLogin = () => {
     window.location.href = '/api/auth/google/login';
   };
 
-  // 3. Người dùng bấm nút Zalo (login giả lập)
   const handleZaloLogin = () => {
     login('zalo', UserRole.WORKER);
-    // Để đồng bộ với Google: cũng reload sang /cs cho chắc
-    const target = `${window.location.origin}/#/cs`;
-    window.location.href = target;
+    navigate('/cs');
   };
 
-  // 4. Đăng nhập quản lý (username + password)
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -69,17 +32,12 @@ export const LoginPage: React.FC = () => {
       return;
     }
 
-    // Admin vẫn dùng điều hướng nội bộ là được
     navigate('/admin');
   };
 
-  // =========================================================
-  // 5. Giao diện (logo + màu cam)
-  // =========================================================
   return (
     <div className="min-h-screen flex items-center justify-center bg-white">
       <div className="w-full max-w-md bg-white border border-orange-100 shadow-sm rounded-3xl p-6">
-        {/* Logo + tiêu đề */}
         <div className="text-center mb-6">
           <img
             src="/logo.png"
@@ -94,7 +52,6 @@ export const LoginPage: React.FC = () => {
           </p>
         </div>
 
-        {/* Tabs */}
         <div className="flex mb-4 bg-orange-50 rounded-2xl p-1">
           <button
             type="button"
@@ -120,7 +77,6 @@ export const LoginPage: React.FC = () => {
           </button>
         </div>
 
-        {/* NỘI DUNG TAB KHÁCH HÀNG */}
         {activeTab === 'worker' && (
           <div className="space-y-3">
             <button
@@ -150,7 +106,6 @@ export const LoginPage: React.FC = () => {
           </div>
         )}
 
-        {/* NỘI DUNG TAB QUẢN LÝ */}
         {activeTab === 'management' && (
           <form onSubmit={handleSubmit} className="space-y-4 mt-2">
             <div>
