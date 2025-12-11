@@ -13,8 +13,8 @@ interface GoogleUser {
 }
 
 export const CompanySelection: React.FC = () => {
-    // Lấy hàm login từ AppContext
-    const { kitchens, user: currentUser, login } = useApp(); 
+// Lấy biến 'user' và hàm 'login' trực tiếp từ AppContext
+const { kitchens, user, login } = useApp();
     
     const [code, setCode] = useState('');
     const [error, setError] = useState('');
@@ -76,13 +76,13 @@ export const CompanySelection: React.FC = () => {
                 <div className="flex items-center gap-3 mb-2">
                     <img 
                         // Hiển thị thông tin user đã được lưu trong Context
-                        src={currentUser?.avatar || currentUser?.picture || 'https://via.placeholder.com/40'} 
+                        src={user?.avatar || user?.picture || 'https://via.placeholder.com/40'} 
                         alt="User" 
                         className="w-10 h-10 rounded-full border-2 border-white"
                     />
                     <div>
                         <p className="text-xs opacity-80">Xin chào,</p>
-                        <p className="font-bold text-lg">{currentUser?.name || 'Bạn'}</p>
+                        <p className="font-bold text-lg">{user?.name || 'Bạn'}</p>
                     </div>
                 </div>
                 <h1 className="text-2xl font-bold mt-4">Truy cập Bếp ăn</h1>
