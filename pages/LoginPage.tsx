@@ -17,7 +17,7 @@ export const LoginPage: React.FC = () => {
 
   // =========================================================
   // 1. Xử lý GOOGLE CALLBACK: ?googleUser=... trên URL
-  //    -> Tự động đăng nhập + chuyển sang /cs
+  //    -> Tự động đăng nhập + CHUYỂN HẲN SANG /cs (reload app)
   // =========================================================
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -26,39 +26,36 @@ export const LoginPage: React.FC = () => {
     if (!googleUserParam) return;
 
     try {
-      // googleUserParam đang là chuỗi JSON đã encode, ví dụ: %7B%22id%22...
       const decoded = decodeURIComponent(googleUserParam);
       const profile = JSON.parse(decoded); // { id, email, name, picture }
 
-      // Đăng nhập với provider "google" + truyền profile để lấy đúng tên + avatar
+      // Lưu user vào context + sessionStorage
       login('google', UserRole.WORKER, profile);
 
-      // Chuyển sang trang chọn bếp / menu
-      navigate('/cs', { replace: true });
-
-      // Xoá query khỏi URL cho sạch: giữ lại /#/cs
-      const cleanUrl = `${window.location.origin}/#/cs`;
-      window.history.replaceState({}, '', cleanUrl);
+      // 👉 Dùng reload toàn trang cho chắc: chuyển thẳng sang /#/cs
+      const target = `${window.location.origin}/#/cs`;
+      window.location.href = target;
     } catch (e) {
       console.error('Error handling googleUser callback:', e);
-      // Nếu có lỗi thì xoá query và để người dùng ở lại màn hình login
-      const cleanUrl = `${window.location.origin}/#/login`;
-      window.history.replaceState({}, '', cleanUrl);
+      // Nếu lỗi thì quay lại /login (reload luôn cho sạch)
+      const target = `${window.location.origin}/#/login`;
+      window.location.href = target;
     }
-  }, [location.search, login, navigate]);
+  }, [location.search, login]);
 
   // =========================================================
   // 2. Người dùng bấm nút Google
   // =========================================================
   const handleGoogleLogin = () => {
-    // Gửi sang API backend để bắt đầu luồng OAuth
     window.location.href = '/api/auth/google/login';
   };
 
   // 3. Người dùng bấm nút Zalo (login giả lập)
   const handleZaloLogin = () => {
     login('zalo', UserRole.WORKER);
-    navigate('/cs');
+    // Để đồng bộ với Google: cũng reload sang /cs cho chắc
+    const target = `${window.location.origin}/#/cs`;
+    window.location.href = target;
   };
 
   // 4. Đăng nhập quản lý (username + password)
@@ -72,6 +69,7 @@ export const LoginPage: React.FC = () => {
       return;
     }
 
+    // Admin vẫn dùng điều hướng nội bộ là được
     navigate('/admin');
   };
 
