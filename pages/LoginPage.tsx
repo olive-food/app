@@ -117,8 +117,12 @@ export const LoginPage: React.FC = () => {
               onClick={handleWorkerLoginZalo}
               className="w-full flex items-center justify-center gap-3 bg-blue-500 hover:bg-blue-600 text-white py-3 px-4 rounded-xl font-medium transition-colors"
             >
-              <div className="font-bold text-xl">Z</div>
-              <span>Đăng nhập bằng Zalo</span>
+              <div  
+              img src="zalo-icon.png"
+              className="font-bold text-xl">
+                <span>Đăng nhập bằng Zalo</span>
+                </div>      
+              
             </button>
 
             {/* Google OAuth thật */}
