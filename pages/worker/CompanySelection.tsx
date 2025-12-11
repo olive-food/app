@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useApp } from '../../context/AppContext'; 
-import { UserRole } from '../../types'; // Đảm bảo đã import UserRole
+import { UserRole } from '../../types'; // Rất quan trọng
 import { Search, AlertCircle } from 'lucide-react';
 
 // Định nghĩa kiểu dữ liệu cho user lấy từ Google URL
@@ -13,7 +13,7 @@ interface GoogleUser {
 }
 
 export const CompanySelection: React.FC = () => {
-    // Lấy biến 'user' (thông tin người dùng hiện tại) và hàm 'login' trực tiếp từ AppContext
+    // 🌟 ĐÚNG: Lấy biến 'user' từ Context
     const { kitchens, user, login } = useApp();
     
     const [code, setCode] = useState('');
@@ -26,7 +26,7 @@ export const CompanySelection: React.FC = () => {
 
     // LOGIC CHÍNH: Xử lý đăng nhập Google từ tham số URL
     useEffect(() => {
-        // 1. Kiểm tra: Nếu user đã có trong Context, hoặc đã xử lý rồi thì thoát (ngăn lỗi ReferenceError)
+        // 1. Kiểm tra: Nếu user đã đăng nhập, hoặc đã xử lý rồi thì thoát
         if (user) return; 
         if (hasProcessedGoogleUser.current) return; 
         
@@ -34,26 +34,27 @@ export const CompanySelection: React.FC = () => {
         const googleUserEncoded = params.get('googleUser');
 
         if (googleUserEncoded) {
-            hasProcessedGoogleUser.current = true; // Đánh dấu đã xử lý
+            hasProcessedGoogleUser.current = true; 
             
             try {
-                // Giải mã và phân tích cú pháp JSON
                 const decodedJson = decodeURIComponent(googleUserEncoded);
                 const userData: GoogleUser = JSON.parse(decodedJson);
                 
-                // Gọi hàm login để cập nhật State và Local Storage
+                // Ghi log để kiểm tra (Anh có thể kiểm tra Console của trình duyệt)
+                console.log("Frontend SUCCESS: Processing user data for:", userData.name); 
+
                 login('google', UserRole.WORKER, userData); 
                 
-                // Dọn dẹp URL: Xóa tham số googleUser khỏi URL (Không chuyển hướng)
+                // Dọn dẹp URL: Xóa tham số googleUser khỏi URL (quan trọng)
                 navigate(location.pathname, { replace: true }); 
 
             } catch (error) {
-                console.error("Lỗi parse thông tin người dùng từ URL:", error);
+                console.error("Failed to process Google User from URL:", error);
                 // Dọn dẹp URL ngay cả khi lỗi
                 navigate(location.pathname, { replace: true });
             }
         }
-    // Dependency array: Bao gồm 'user' để React biết khi nào nên chạy lại (khi user thay đổi)
+    // 🌟 ĐÚNG: Dependency array chỉ sử dụng biến 'user'
     }, [location.search, navigate, login, user]); 
 
 
@@ -61,7 +62,6 @@ export const CompanySelection: React.FC = () => {
         e.preventDefault();
         const kitchen = kitchens.find(k => k.slug.toLowerCase() === code.toLowerCase());
         if (kitchen) {
-            // Khi tìm thấy bếp, chuyển user vào bếp
             navigate(`/cs/${kitchen.slug}`);
         } else {
             setError('Không tìm thấy bếp với mã này. Vui lòng kiểm tra lại.');
@@ -74,14 +74,14 @@ export const CompanySelection: React.FC = () => {
             <div className="bg-[#FF6B00] text-white p-6 rounded-b-3xl shadow-lg mb-6">
                 <div className="flex items-center gap-3 mb-2">
                     <img 
-                        // Hiển thị Avatar (ưu tiên picture từ Google, nếu không thì avatar cũ)
+                        // 🌟 ĐÚNG: Hiển thị Avatar bằng biến user
                         src={user?.avatar || user?.picture || 'https://via.placeholder.com/40'} 
                         alt="User" 
                         className="w-10 h-10 rounded-full border-2 border-white"
                     />
                     <div>
                         <p className="text-xs opacity-80">Xin chào,</p>
-                        {/* Hiển thị Tên người dùng */}
+                        {/* 🌟 ĐÚNG: Hiển thị Tên người dùng bằng biến user */}
                         <p className="font-bold text-lg">{user?.name || 'Bạn'}</p>
                     </div>
                 </div>
