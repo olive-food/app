@@ -4,12 +4,12 @@ import { useApp } from '../../context/AppContext';
 import { UserRole } from '../../types';
 import { Search, AlertCircle } from 'lucide-react';
 
-interface GoogleProfile {
+type OAuthProfile = {
   id?: string;
   email?: string;
   name?: string;
   picture?: string;
-}
+};
 
 export const CompanySelection: React.FC = () => {
   const { kitchens, user, login } = useApp();
@@ -17,32 +17,46 @@ export const CompanySelection: React.FC = () => {
   const [error, setError] = useState('');
   const navigate = useNavigate();
   const location = useLocation();
+
+  // để tránh chạy login nhiều lần
   const processedRef = useRef(false);
 
-  // Xử lý googleUser=? trên URL khi quay về /cs
+  // =========================================================
+  // 1) Nhận profile từ URL query:
+  //    - googleUser=...
+  //    - zaloUser=...
+  //    Sau đó login() và xóa query khỏi URL
+  // =========================================================
   useEffect(() => {
     if (processedRef.current) return;
 
     const params = new URLSearchParams(location.search);
-    const encoded = params.get('googleUser');
+    const encodedGoogle = params.get('googleUser');
+    const encodedZalo = params.get('zaloUser');
+
+    const encoded = encodedGoogle || encodedZalo;
     if (!encoded) return;
 
     try {
       const decoded = decodeURIComponent(encoded);
-      const profile: GoogleProfile = JSON.parse(decoded);
+      const profile: OAuthProfile = JSON.parse(decoded);
 
-      console.log('Processing Google user:', profile.name);
+      const provider = encodedGoogle ? 'google' : 'zalo';
+      console.log(`OAuth profile received (${provider}):`, profile);
 
-      login('google', UserRole.WORKER, profile);
+      login(provider, UserRole.WORKER, profile);
     } catch (e) {
-      console.error('Failed to process Google user from URL:', e);
+      console.error('Failed to process OAuth user from URL:', e);
     } finally {
       processedRef.current = true;
-      // Xoá query khỏi URL, giữ lại /cs
+      // Xóa query khỏi URL, giữ lại /cs
       navigate('/cs', { replace: true });
     }
   }, [location.search, login, navigate]);
 
+  // =========================================================
+  // 2) Nhập mã bếp (slug) để vào bếp
+  // =========================================================
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     setError('');

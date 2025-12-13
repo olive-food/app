@@ -2,10 +2,9 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { Lock, User as UserIcon, ArrowRight } from 'lucide-react';
-import { UserRole } from '../types';
 
 export const LoginPage: React.FC = () => {
-  const { login, loginWithCredentials } = useApp();
+  const { loginWithCredentials } = useApp();
   const navigate = useNavigate();
 
   const [activeTab, setActiveTab] = useState<'worker' | 'management'>('worker');
@@ -13,15 +12,17 @@ export const LoginPage: React.FC = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
 
+  // Google login (OAuth)
   const handleGoogleLogin = () => {
     window.location.href = '/api/auth/google/login';
   };
 
+  // Zalo login (OAuth)
   const handleZaloLogin = () => {
-    login('zalo', UserRole.WORKER);
-    navigate('/cs');
+    window.location.href = '/api/auth/zalo/login';
   };
 
+  // Admin login (username + password)
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -38,6 +39,7 @@ export const LoginPage: React.FC = () => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-white">
       <div className="w-full max-w-md bg-white border border-orange-100 shadow-sm rounded-3xl p-6">
+        {/* Logo + tiêu đề */}
         <div className="text-center mb-6">
           <img
             src="/logo.png"
@@ -52,6 +54,7 @@ export const LoginPage: React.FC = () => {
           </p>
         </div>
 
+        {/* Tabs */}
         <div className="flex mb-4 bg-orange-50 rounded-2xl p-1">
           <button
             type="button"
@@ -77,6 +80,7 @@ export const LoginPage: React.FC = () => {
           </button>
         </div>
 
+        {/* NỘI DUNG TAB KHÁCH HÀNG */}
         {activeTab === 'worker' && (
           <div className="space-y-3">
             <button
@@ -106,6 +110,7 @@ export const LoginPage: React.FC = () => {
           </div>
         )}
 
+        {/* NỘI DUNG TAB QUẢN LÝ */}
         {activeTab === 'management' && (
           <form onSubmit={handleSubmit} className="space-y-4 mt-2">
             <div>
