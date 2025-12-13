@@ -13,11 +13,13 @@ async function fetchJson(url, options) {
 export default async function handler(req, res) {
   try {
     const appId = process.env.ZALO_APP_ID;
-    const appSecret = process.env.ZALO_APP_SECRET;
+
+    // ✅ Anh đang dùng tên biến ZALO_SECRET_KEY trên Vercel
+    const appSecret = process.env.ZALO_SECRET_KEY || process.env.ZALO_APP_SECRET;
 
     if (!appId || !appSecret) {
       res.statusCode = 500;
-      res.end('Missing ZALO_APP_ID or ZALO_APP_SECRET');
+      res.end('Missing ZALO_APP_ID or ZALO_SECRET_KEY (or ZALO_APP_SECRET)');
       return;
     }
 
@@ -59,7 +61,7 @@ export default async function handler(req, res) {
       return;
     }
 
-    // 2) Lấy profile user
+    // 2) Lấy profile
     const profileUrl =
       'https://graph.zalo.me/v2.0/me' +
       `?access_token=${encodeURIComponent(accessToken)}` +
@@ -82,8 +84,6 @@ export default async function handler(req, res) {
     const redirectUrl =
       `${baseUrl}/#/cs?zaloUser=` +
       encodeURIComponent(JSON.stringify(zaloUser));
-
-    console.log('Zalo callback success, redirect to:', redirectUrl);
 
     res.writeHead(302, { Location: redirectUrl });
     res.end();
