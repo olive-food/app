@@ -1,22 +1,23 @@
+// api/auth/google/callback.js
 import { google } from 'googleapis';
 
-// 1. Thông tin ứng dụng Google OAuth (lấy từ biến môi trường)
+// 1. Lấy thông tin OAuth từ biến môi trường
 const clientId = process.env.GOOGLE_CLIENT_ID;
 const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
 
-// 2. Địa chỉ website phía client (app React)
+// 2. URL base của frontend
 const clientBaseUrl =
   process.env.VERCEL_ENV === 'development'
-    ? 'http://localhost:5173' // nếu chạy dev bằng "npm run dev"
-    : 'https://app.olive.com.vn'; // khi deploy trên Vercel với domain app.olive.com.vn
+    ? 'http://localhost:3000' // khi chạy local
+    : 'https://app.olive.com.vn'; // khi chạy trên Vercel
 
-// 3. Địa chỉ callback mà Google sẽ gọi lại
+// 3. URL callback đã đăng ký với Google
 const redirectUri = `${clientBaseUrl}/api/auth/google/callback`;
 
 // 4. Tạo OAuth2 client
 const oauth2Client = new google.auth.OAuth2(clientId, clientSecret, redirectUri);
 
-// 5. Hàm xử lý callback từ Google
+// 5. Hàm handler cho callback
 export default async function handler(req, res) {
   try {
     // Lấy "code" Google trả về trong URL
@@ -29,11 +30,11 @@ export default async function handler(req, res) {
       return;
     }
 
-    // 6. Đổi "code" lấy access token
+    // Đổi "code" lấy token
     const { tokens } = await oauth2Client.getToken(code);
     oauth2Client.setCredentials(tokens);
 
-    // 7. Lấy thông tin user từ Google
+    // Lấy thông tin user
     const oauth2 = google.oauth2({ auth: oauth2Client, version: 'v2' });
     const { data } = await oauth2.userinfo.get();
 
@@ -44,15 +45,13 @@ export default async function handler(req, res) {
       picture: data.picture,
     };
 
-    // 8. Tạo URL để chuyển người dùng về lại app React
-    // 🔴 LƯU Ý: chuyển về /#/login?googleUser=... (KHÔNG phải /#/cs nữa)
-    const redirectUrl = `${clientBaseUrl}/#/login?googleUser=${encodeURIComponent(
+    // 🔴 QUAN TRỌNG: redirect về /#/cs?googleUser=...
+    const redirectUrl = `${clientBaseUrl}/#/cs?googleUser=${encodeURIComponent(
       JSON.stringify(googleUser)
     )}`;
 
-    console.log('SUCCESS: Redirecting to', redirectUrl);
+    console.log('Google callback success, redirect to:', redirectUrl);
 
-    // 9. Redirect
     res.writeHead(302, { Location: redirectUrl });
     res.end();
   } catch (err) {
