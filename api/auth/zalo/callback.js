@@ -26,7 +26,6 @@ module.exports = async function handler(req, res) {
         ? 'http://localhost:3000'
         : 'https://app.olive.com.vn';
 
-    // Lấy code từ URL callback
     const url = new URL(req.url, `http://${req.headers.host}`);
     const code = url.searchParams.get('code');
 
@@ -36,7 +35,7 @@ module.exports = async function handler(req, res) {
       return;
     }
 
-    // 1) Đổi code -> access_token
+    // đổi code -> access_token
     const tokenUrl = 'https://oauth.zaloapp.com/v4/access_token';
 
     const body = new URLSearchParams({
@@ -60,7 +59,7 @@ module.exports = async function handler(req, res) {
       return;
     }
 
-    // 2) Lấy profile (id, name, picture)
+    // lấy profile
     const profileUrl =
       'https://graph.zalo.me/v2.0/me' +
       `?access_token=${encodeURIComponent(accessToken)}` +
@@ -82,12 +81,10 @@ module.exports = async function handler(req, res) {
       picture,
     };
 
-    // 3) Redirect về /#/cs?zaloUser=...
+    // redirect về /cs
     const redirectUrl =
       `${baseUrl}/#/cs?zaloUser=` +
       encodeURIComponent(JSON.stringify(zaloUser));
-
-    console.log('Zalo callback success, redirect to:', redirectUrl);
 
     res.writeHead(302, { Location: redirectUrl });
     res.end();

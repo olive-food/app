@@ -9,18 +9,14 @@ module.exports = async function handler(req, res) {
       return;
     }
 
-    // Xác định base URL theo môi trường
     const baseUrl =
       process.env.VERCEL_ENV === 'development'
         ? 'http://localhost:3000'
         : 'https://app.olive.com.vn';
 
     const redirectUri = `${baseUrl}/api/auth/zalo/callback`;
-
-    // state demo (để sau có thể mở rộng chống CSRF)
     const state = Math.random().toString(36).slice(2);
 
-    // Zalo OAuth: permission endpoint
     const authUrl =
       'https://oauth.zaloapp.com/v4/permission' +
       `?app_id=${encodeURIComponent(appId)}` +
