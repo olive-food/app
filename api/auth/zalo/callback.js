@@ -10,7 +10,7 @@ async function fetchJson(url, options) {
   }
 }
 
-module.exports = async function handler(req, res) {
+export default async function handler(req, res) {
   try {
     const appId = process.env.ZALO_APP_ID;
     const appSecret = process.env.ZALO_APP_SECRET;
@@ -35,13 +35,13 @@ module.exports = async function handler(req, res) {
       return;
     }
 
-    // đổi code -> access_token
+    // 1) Đổi code -> access_token
     const tokenUrl = 'https://oauth.zaloapp.com/v4/access_token';
 
     const body = new URLSearchParams({
       app_id: appId,
       app_secret: appSecret,
-      code: code,
+      code,
       grant_type: 'authorization_code',
     });
 
@@ -51,7 +51,7 @@ module.exports = async function handler(req, res) {
       body,
     });
 
-    const accessToken = tokenData && tokenData.access_token;
+    const accessToken = tokenData?.access_token;
     if (!accessToken) {
       console.error('Zalo token response:', tokenData);
       res.statusCode = 500;
@@ -59,7 +59,7 @@ module.exports = async function handler(req, res) {
       return;
     }
 
-    // lấy profile
+    // 2) Lấy profile user
     const profileUrl =
       'https://graph.zalo.me/v2.0/me' +
       `?access_token=${encodeURIComponent(accessToken)}` +
@@ -68,23 +68,22 @@ module.exports = async function handler(req, res) {
     const profileData = await fetchJson(profileUrl, { method: 'GET' });
 
     const picture =
-      (profileData &&
-        profileData.picture &&
-        profileData.picture.data &&
-        profileData.picture.data.url) ||
-      profileData.picture ||
+      profileData?.picture?.data?.url ||
+      profileData?.picture ||
       '';
 
     const zaloUser = {
-      id: profileData && profileData.id,
-      name: profileData && profileData.name,
+      id: profileData?.id,
+      name: profileData?.name,
       picture,
     };
 
-    // redirect về /cs
+    // 3) Redirect về /#/cs?zaloUser=...
     const redirectUrl =
       `${baseUrl}/#/cs?zaloUser=` +
       encodeURIComponent(JSON.stringify(zaloUser));
+
+    console.log('Zalo callback success, redirect to:', redirectUrl);
 
     res.writeHead(302, { Location: redirectUrl });
     res.end();
@@ -93,4 +92,4 @@ module.exports = async function handler(req, res) {
     res.statusCode = 500;
     res.end('Zalo callback error');
   }
-};
+}

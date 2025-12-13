@@ -1,5 +1,6 @@
 // api/auth/zalo/login.js
-module.exports = async function handler(req, res) {
+
+export default async function handler(req, res) {
   try {
     const appId = process.env.ZALO_APP_ID;
 
@@ -9,12 +10,14 @@ module.exports = async function handler(req, res) {
       return;
     }
 
+    // Lấy baseUrl theo môi trường (prod chạy app.olive.com.vn)
     const baseUrl =
       process.env.VERCEL_ENV === 'development'
         ? 'http://localhost:3000'
         : 'https://app.olive.com.vn';
 
     const redirectUri = `${baseUrl}/api/auth/zalo/callback`;
+
     const state = Math.random().toString(36).slice(2);
 
     const authUrl =
@@ -30,4 +33,4 @@ module.exports = async function handler(req, res) {
     res.statusCode = 500;
     res.end('Zalo login error');
   }
-};
+}
