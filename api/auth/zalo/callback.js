@@ -1,105 +1,99 @@
-import crypto from 'crypto';
+// api/auth/zalo/callback.js
 
-// 1. Zalo App Credentials (Cần cấu hình trong Vercel Environment Variables)
-// Sau khi đăng ký ứng dụng trên Zalo for Developers, anh sẽ có 2 giá trị này
-const appId = process.env.ZALO_APP_ID;
-const secretKey = process.env.ZALO_SECRET_KEY; // Đây là App Secret Key
-
-// 2. Base URL (Giống như Google Login)
-const clientBaseUrl = 
-  process.env.VERCEL_ENV === 'development'
-    ? 'http://localhost:3000'
-    : 'https://app.olive.com.vn'; 
-
-// URL callback phải được khai báo giống hệt trong cấu hình Zalo App
-const redirectUri = `${clientBaseUrl}/api/auth/zalo/callback`;
-
-// Hàm hỗ trợ tính toán appsecret_proof (yêu cầu bảo mật của Zalo)
-const calculateAppSecretProof = (accessToken, appSecret) => {
-    // Sử dụng thuật toán HMAC SHA256
-    const hmac = crypto.createHmac('sha256', appSecret);
-    hmac.update(accessToken);
-    return hmac.digest('hex');
-};
-
-export default async function handler(req, res) {
+async function fetchJson(url, options) {
+  const r = await fetch(url, options);
+  const text = await r.text();
   try {
-    // Lấy code từ query string sau khi Zalo redirect về
-    const code = req.query.code;
+    return JSON.parse(text);
+  } catch {
+    throw new Error(`Non-JSON response (${r.status}): ${text}`);
+  }
+}
+
+module.exports = async function handler(req, res) {
+  try {
+    const appId = process.env.ZALO_APP_ID;
+    const appSecret = process.env.ZALO_APP_SECRET;
+
+    if (!appId || !appSecret) {
+      res.statusCode = 500;
+      res.end('Missing ZALO_APP_ID or ZALO_APP_SECRET');
+      return;
+    }
+
+    const baseUrl =
+      process.env.VERCEL_ENV === 'development'
+        ? 'http://localhost:3000'
+        : 'https://app.olive.com.vn';
+
+    // Lấy code từ URL callback
+    const url = new URL(req.url, `http://${req.headers.host}`);
+    const code = url.searchParams.get('code');
 
     if (!code) {
       res.statusCode = 400;
-      return res.end('Missing code');
+      res.end('Missing "code" from Zalo callback');
+      return;
     }
 
-    // --- BƯỚC 1: Đổi Code lấy Access Token ---
-    const tokenResponse = await fetch('https://oauth.zaloapp.com/v4/access_token', {
+    // 1) Đổi code -> access_token
+    const tokenUrl = 'https://oauth.zaloapp.com/v4/access_token';
+
+    const body = new URLSearchParams({
+      app_id: appId,
+      app_secret: appSecret,
+      code: code,
+      grant_type: 'authorization_code',
+    });
+
+    const tokenData = await fetchJson(tokenUrl, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      // Gửi yêu cầu bằng x-www-form-urlencoded
-      body: new URLSearchParams({
-        app_id: appId,
-        app_secret: secretKey,
-        code: code,
-        redirect_uri: redirectUri,
-        grant_type: 'authorization_code'
-      }).toString()
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body,
     });
 
-    const tokenData = await tokenResponse.json();
-
-    if (tokenData.error || !tokenData.access_token) {
-      console.error('Zalo Token Error:', tokenData);
-      res.statusCode = 401;
-      return res.end(`Failed to get Zalo access token: ${tokenData.error_name || 'Unknown'}`);
+    const accessToken = tokenData && tokenData.access_token;
+    if (!accessToken) {
+      console.error('Zalo token response:', tokenData);
+      res.statusCode = 500;
+      res.end('Failed to get Zalo access_token');
+      return;
     }
 
-    const accessToken = tokenData.access_token;
-    
-    // Tính toán appsecret_proof
-    const proof = calculateAppSecretProof(accessToken, secretKey);
+    // 2) Lấy profile (id, name, picture)
+    const profileUrl =
+      'https://graph.zalo.me/v2.0/me' +
+      `?access_token=${encodeURIComponent(accessToken)}` +
+      `&fields=id,name,picture`;
 
-    // --- BƯỚC 2: Lấy thông tin User Profile ---
-    // Yêu cầu các field: id, name, picture
-    const profileResponse = await fetch(`https://graph.zalo.me/v2.0/me?fields=id,name,picture`, {
-      method: 'GET',
-      headers: {
-        // Zalo dùng access_token và appsecret_proof trong header
-        'access_token': accessToken,
-        'appsecret_proof': proof, 
-      },
-    });
+    const profileData = await fetchJson(profileUrl, { method: 'GET' });
 
-    const profileData = await profileResponse.json();
-    
-    if (profileData.error) {
-      console.error('Zalo Profile Error:', profileData);
-      res.statusCode = 401;
-      return res.end(`Failed to get Zalo profile: ${profileData.error_name || 'Unknown'}`);
-    }
+    const picture =
+      (profileData &&
+        profileData.picture &&
+        profileData.picture.data &&
+        profileData.picture.data.url) ||
+      profileData.picture ||
+      '';
 
-    // --- BƯỚC 3: Xử lý và Chuyển hướng về Frontend ---
     const zaloUser = {
-      id: profileData.id, 
-      name: profileData.name,
-      // Zalo trả về cấu trúc ảnh trong data.picture.data.url
-      picture: profileData.picture?.data?.url || 'https://via.placeholder.com/40', 
+      id: profileData && profileData.id,
+      name: profileData && profileData.name,
+      picture,
     };
 
-    const redirectUrl = `${clientBaseUrl}/#/cs?zaloUser=${encodeURIComponent(
-      JSON.stringify(zaloUser)
-    )}`;
-    
-    console.log("Redirecting Zalo user to:", redirectUrl);
+    // 3) Redirect về /#/cs?zaloUser=...
+    const redirectUrl =
+      `${baseUrl}/#/cs?zaloUser=` +
+      encodeURIComponent(JSON.stringify(zaloUser));
+
+    console.log('Zalo callback success, redirect to:', redirectUrl);
 
     res.writeHead(302, { Location: redirectUrl });
     res.end();
-
   } catch (err) {
-    console.error('Zalo callback error (Function crashed):', err);
+    console.error('Zalo callback error:', err);
     res.statusCode = 500;
     res.end('Zalo callback error');
   }
-}
+};
