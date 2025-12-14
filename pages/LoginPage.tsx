@@ -12,14 +12,14 @@ export const LoginPage: React.FC = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
 
-  // Google login (OAuth)
+  // ✅ Google login (OAuth)
   const handleGoogleLogin = () => {
-    window.location.href = '/api/auth/google/login';
+    window.location.assign('/api/auth/google/login');
   };
 
-  // Zalo login (OAuth)
+  // ✅ Zalo login (OAuth) - BẮT BUỘC đi qua API
   const handleZaloLogin = () => {
-    window.location.href = '/api/auth/zalo/login';
+    window.location.assign('/api/auth/zalo/login');
   };
 
   // Admin login (username + password)
@@ -39,22 +39,18 @@ export const LoginPage: React.FC = () => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-white">
       <div className="w-full max-w-md bg-white border border-orange-100 shadow-sm rounded-3xl p-6">
-        {/* Logo + tiêu đề */}
         <div className="text-center mb-6">
           <img
             src="/logo.png"
             alt="Olive Food Services"
             className="mx-auto mb-3 h-32 object-contain"
           />
-          <h1 className="text-xl font-bold text-orange-600">
-            Olive Food Services
-          </h1>
+          <h1 className="text-xl font-bold text-orange-600">Olive Food Services</h1>
           <p className="text-xs text-slate-500 mt-1">
             Hệ thống phục vụ suất ăn công nghiệp & tiếp nhận ý kiến khách hàng
           </p>
         </div>
 
-        {/* Tabs */}
         <div className="flex mb-4 bg-orange-50 rounded-2xl p-1">
           <button
             type="button"
@@ -80,7 +76,6 @@ export const LoginPage: React.FC = () => {
           </button>
         </div>
 
-        {/* NỘI DUNG TAB KHÁCH HÀNG */}
         {activeTab === 'worker' && (
           <div className="space-y-3">
             <button
@@ -110,7 +105,6 @@ export const LoginPage: React.FC = () => {
           </div>
         )}
 
-        {/* NỘI DUNG TAB QUẢN LÝ */}
         {activeTab === 'management' && (
           <form onSubmit={handleSubmit} className="space-y-4 mt-2">
             <div>
@@ -145,9 +139,7 @@ export const LoginPage: React.FC = () => {
               </div>
             </div>
 
-            {error && (
-              <p className="text-xs text-red-500 text-center">{error}</p>
-            )}
+            {error && <p className="text-xs text-red-500 text-center">{error}</p>}
 
             <button
               type="submit"
