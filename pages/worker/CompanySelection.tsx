@@ -18,15 +18,9 @@ export const CompanySelection: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // để tránh chạy login nhiều lần
   const processedRef = useRef(false);
 
-  // =========================================================
-  // 1) Nhận profile từ URL query:
-  //    - googleUser=...
-  //    - zaloUser=...
-  //    Sau đó login() và xóa query khỏi URL
-  // =========================================================
+  // 1) Nhận profile từ URL query (googleUser / zaloUser)
   useEffect(() => {
     if (processedRef.current) return;
 
@@ -42,21 +36,26 @@ export const CompanySelection: React.FC = () => {
       const profile: OAuthProfile = JSON.parse(decoded);
 
       const provider = encodedGoogle ? 'google' : 'zalo';
-      console.log(`OAuth profile received (${provider}):`, profile);
-
       login(provider, UserRole.WORKER, profile);
     } catch (e) {
       console.error('Failed to process OAuth user from URL:', e);
     } finally {
       processedRef.current = true;
-      // Xóa query khỏi URL, giữ lại /cs
-      navigate('/cs', { replace: true });
+      navigate('/cs', { replace: true }); // xoá query khỏi URL
     }
   }, [location.search, login, navigate]);
 
-  // =========================================================
-  // 2) Nhập mã bếp (slug) để vào bếp
-  // =========================================================
+  // 2) ✅ CHẶN vào CS nếu chưa đăng nhập
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const hasOAuthParam = !!(params.get('googleUser') || params.get('zaloUser'));
+
+    // Nếu chưa có user và cũng không có param OAuth => quay về login
+    if (!user && !hasOAuthParam) {
+      navigate('/login', { replace: true });
+    }
+  }, [user, location.search, navigate]);
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -72,24 +71,21 @@ export const CompanySelection: React.FC = () => {
     navigate(`/cs/${kitchen.slug}`);
   };
 
+  // Nếu user chưa có (đang redirect) thì không render gì để khỏi “nhấp nháy”
+  if (!user) return null;
+
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center px-4">
       <div className="w-full max-w-lg bg-white rounded-3xl shadow-sm p-6">
-        {/* Header: avatar + chào tên */}
         <div className="flex items-center gap-3 mb-6">
           <img
-            src={
-              user?.avatar ||
-              'https://ui-avatars.com/api/?name=Khach+hang&background=random'
-            }
+            src={user?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || 'Khach hang')}`}
             alt="avatar"
             className="w-12 h-12 rounded-full object-cover"
           />
           <div>
             <p className="text-xs text-slate-500">Xin chào,</p>
-            <p className="text-lg font-semibold">
-              {user?.name || 'Khách hàng'}
-            </p>
+            <p className="text-lg font-semibold">{user?.name || 'Khách hàng'}</p>
           </div>
         </div>
 
