@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState } from 'react';
 import { User, Kitchen, DailyMenu, SurveyResponse, UserRole } from '../types';
 import { MOCK_KITCHENS, MOCK_USERS, INITIAL_MENUS, INITIAL_SURVEYS } from '../constants';
 
@@ -10,15 +10,10 @@ type OAuthProfile = {
 };
 
 interface AppContextType {
-  // ✅ Giữ currentUser để không vỡ code cũ
   currentUser: User | null;
-
-  // ✅ Thêm alias "user" để các page đang dùng `user` không lỗi
   user: User | null;
 
-  // ✅ login nhận thêm profile (Google/Zalo)
   login: (provider: 'zalo' | 'google', role?: UserRole, profile?: OAuthProfile) => void;
-
   loginWithCredentials: (username: string, pass: string) => boolean;
   logout: () => void;
 
@@ -32,13 +27,11 @@ interface AppContextType {
   addSurvey: (survey: Omit<SurveyResponse, 'id' | 'userId' | 'date'>) => void;
   getKitchenBySlug: (slug: string) => Kitchen | undefined;
 
-  // Admin Features
   addKitchen: (kitchen: Kitchen) => void;
   updateKitchen: (kitchen: Kitchen) => void;
   deleteKitchen: (id: string) => void;
   registerManager: (user: User) => void;
 
-  // Manager Features
   addWindowToKitchen: (kitchenId: string, windowName: string) => void;
 }
 
@@ -46,33 +39,33 @@ const STORAGE_KEY = 'olive_user';
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
+// ✅ NẠP USER NGAY LÚC KHỞI TẠO (không đợi useEffect)
+function loadUserFromStorage(): User | null {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch (e) {
+    console.error('Failed to parse user from localStorage', e);
+    localStorage.removeItem(STORAGE_KEY);
+    return null;
+  }
+}
+
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [currentUser, setCurrentUser] = useState<User | null>(() => loadUserFromStorage());
+
   const [users, setUsers] = useState<User[]>(MOCK_USERS);
   const [kitchens, setKitchens] = useState<Kitchen[]>(MOCK_KITCHENS);
   const [menus, setMenus] = useState<DailyMenu[]>(INITIAL_MENUS);
   const [surveys, setSurveys] = useState<SurveyResponse[]>(INITIAL_SURVEYS);
 
-  // ✅ Load user từ localStorage để refresh không bị về login
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const saved = JSON.parse(raw);
-        setCurrentUser(saved);
-      }
-    } catch (e) {
-      console.error('Failed to load user from localStorage', e);
-      localStorage.removeItem(STORAGE_KEY);
-    }
-  }, []);
-
   const persistUser = (user: User | null) => {
     if (!user) {
       localStorage.removeItem(STORAGE_KEY);
-      return;
+    } else {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
     }
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
   };
 
   const login = (provider: 'zalo' | 'google', role: UserRole = UserRole.WORKER, profile?: OAuthProfile) => {
@@ -89,7 +82,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       name: displayName,
       avatar,
       role,
-      // có thể lưu email vào company/field khác nếu cần
     };
 
     setCurrentUser(newUser);
@@ -132,15 +124,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const addRating = (menuId: string, stars: number) => {
     if (!currentUser) return;
     setMenus((prev) =>
-      prev.map((menu) => {
-        if (menu.id === menuId) {
-          return {
-            ...menu,
-            ratings: [...menu.ratings, { userId: currentUser.id, stars, timestamp: Date.now() }],
-          };
-        }
-        return menu;
-      })
+      prev.map((menu) =>
+        menu.id === menuId
+          ? {
+              ...menu,
+              ratings: [...menu.ratings, { userId: currentUser.id, stars, timestamp: Date.now() }],
+            }
+          : menu
+      )
     );
   };
 
@@ -158,7 +149,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const getKitchenBySlug = (slug: string) => kitchens.find((k) => k.slug === slug);
 
-  // --- Admin Functions ---
   const addKitchen = (newKitchen: Kitchen) => setKitchens((prev) => [...prev, newKitchen]);
   const updateKitchen = (updatedKitchen: Kitchen) =>
     setKitchens((prev) => prev.map((k) => (k.id === updatedKitchen.id ? updatedKitchen : k)));
@@ -185,7 +175,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     <AppContext.Provider
       value={{
         currentUser,
-        user: currentUser, // ✅ alias
+        user: currentUser,
         login,
         loginWithCredentials,
         logout,
