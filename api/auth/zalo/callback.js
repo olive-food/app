@@ -23,8 +23,6 @@ async function fetchJson(url, options) {
 export default async function handler(req, res) {
   try {
     const appId = process.env.ZALO_APP_ID;
-
-    // Anh đang dùng biến ZALO_SECRET_KEY trên Vercel
     const secretKey = process.env.ZALO_SECRET_KEY || process.env.ZALO_APP_SECRET;
 
     if (!appId || !secretKey) {
@@ -49,7 +47,7 @@ export default async function handler(req, res) {
       return;
     }
 
-    // Lấy code_verifier từ cookie
+    // PKCE verifier từ cookie
     const cookies = parseCookies(req.headers.cookie || '');
     const codeVerifier = cookies.zalo_code_verifier;
 
@@ -59,9 +57,8 @@ export default async function handler(req, res) {
       return;
     }
 
-    // 1) Đổi code -> access_token (User Access Token V4)
+    // 1) Đổi code -> access_token
     const tokenUrl = 'https://oauth.zaloapp.com/v4/access_token';
-
     const body = new URLSearchParams({
       app_id: appId,
       code,
@@ -70,8 +67,6 @@ export default async function handler(req, res) {
       redirect_uri: redirectUri,
     });
 
-    // IMPORTANT: vì anh bật “Kiểm tra secret key…”
-    // => phải gửi header secret_key
     const tokenData = await fetchJson(tokenUrl, {
       method: 'POST',
       headers: {
@@ -89,7 +84,8 @@ export default async function handler(req, res) {
       return;
     }
 
-    // 2) Lấy profile (id, name, picture)
+    // 2) Lấy profile
+    // NOTE: Zalo trả picture dạng {data:{url}} (thường vậy)
     const profileUrl =
       'https://graph.zalo.me/v2.0/me' +
       `?access_token=${encodeURIComponent(accessToken)}` +
@@ -97,23 +93,25 @@ export default async function handler(req, res) {
 
     const profileData = await fetchJson(profileUrl, { method: 'GET' });
 
+    const name = profileData?.name || '';
     const picture =
       profileData?.picture?.data?.url ||
+      profileData?.picture?.url ||
       profileData?.picture ||
       '';
 
     const zaloUser = {
-      id: profileData?.id,
-      name: profileData?.name,
+      id: profileData?.id || '',
+      name,
       picture,
     };
 
-    // Xóa cookie code_verifier sau khi dùng xong
+    // Xóa cookie verifier sau khi xong
     res.setHeader('Set-Cookie', [
       'zalo_code_verifier=; Path=/; HttpOnly; Max-Age=0; SameSite=Lax; Secure',
     ]);
 
-    // 3) Redirect về /#/cs?zaloUser=...
+    // 3) Redirect về CS kèm zaloUser
     const redirectUrl =
       `${baseUrl}/#/cs?zaloUser=` +
       encodeURIComponent(JSON.stringify(zaloUser));

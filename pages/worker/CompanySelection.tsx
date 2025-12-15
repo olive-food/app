@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import React, { useEffect, useRef, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
 import { UserRole } from '../../types';
 import { Search, AlertCircle } from 'lucide-react';
@@ -13,48 +13,44 @@ type OAuthProfile = {
 
 export const CompanySelection: React.FC = () => {
   const { kitchens, user, login } = useApp();
-  const [code, setCode] = useState('');
-  const [error, setError] = useState('');
-  const navigate = useNavigate();
   const location = useLocation();
+  const navigate = useNavigate();
 
   const processedRef = useRef(false);
+  const [code, setCode] = useState('');
+  const [error, setError] = useState('');
 
-  // 1) Nhận profile từ URL query (googleUser / zaloUser)
+  // ✅ Parse zaloUser/googleUser từ URL và login()
   useEffect(() => {
     if (processedRef.current) return;
 
     const params = new URLSearchParams(location.search);
-    const encodedGoogle = params.get('googleUser');
-    const encodedZalo = params.get('zaloUser');
+    const googleParam = params.get('googleUser');
+    const zaloParam = params.get('zaloUser');
 
-    const encoded = encodedGoogle || encodedZalo;
-    if (!encoded) return;
+    const raw = googleParam || zaloParam;
+    if (!raw) return;
 
     try {
-      const decoded = decodeURIComponent(encoded);
-      const profile: OAuthProfile = JSON.parse(decoded);
+      const profile: OAuthProfile = JSON.parse(decodeURIComponent(raw));
+      const provider = googleParam ? 'google' : 'zalo';
 
-      const provider = encodedGoogle ? 'google' : 'zalo';
       login(provider, UserRole.WORKER, profile);
     } catch (e) {
-      console.error('Failed to process OAuth user from URL:', e);
+      console.error('Failed to parse OAuth user:', e);
     } finally {
       processedRef.current = true;
-      navigate('/cs', { replace: true }); // xoá query khỏi URL
+      // Xoá query khỏi URL
+      navigate('/cs', { replace: true });
     }
   }, [location.search, login, navigate]);
 
-  // 2) ✅ CHẶN vào CS nếu chưa đăng nhập
+  // ✅ Nếu chưa có user -> về login (tránh vào CS chay)
   useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    const hasOAuthParam = !!(params.get('googleUser') || params.get('zaloUser'));
-
-    // Nếu chưa có user và cũng không có param OAuth => quay về login
-    if (!user && !hasOAuthParam) {
+    if (!user) {
       navigate('/login', { replace: true });
     }
-  }, [user, location.search, navigate]);
+  }, [user, navigate]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -71,28 +67,36 @@ export const CompanySelection: React.FC = () => {
     navigate(`/cs/${kitchen.slug}`);
   };
 
-  // Nếu user chưa có (đang redirect) thì không render gì để khỏi “nhấp nháy”
   if (!user) return null;
+
+  const displayName = user.name || 'Khách hàng';
+  const avatarUrl =
+    user.avatar ||
+    `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=FF6B00&color=fff`;
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center px-4">
       <div className="w-full max-w-lg bg-white rounded-3xl shadow-sm p-6">
         <div className="flex items-center gap-3 mb-6">
           <img
-            src={user?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || 'Khach hang')}`}
+            src={avatarUrl}
             alt="avatar"
             className="w-12 h-12 rounded-full object-cover"
+            onError={(e) => {
+              // fallback nếu avatar lỗi
+              (e.currentTarget as HTMLImageElement).src =
+                `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=FF6B00&color=fff`;
+            }}
           />
           <div>
             <p className="text-xs text-slate-500">Xin chào,</p>
-            <p className="text-lg font-semibold">{user?.name || 'Khách hàng'}</p>
+            <p className="text-lg font-semibold">{displayName}</p>
           </div>
         </div>
 
         <h1 className="text-xl font-bold mb-2">Truy cập Bếp ăn</h1>
         <p className="text-sm text-slate-600 mb-4">
-          Vui lòng nhập mã bếp (ví dụ: <strong>ss</strong>, <strong>gt</strong>) hoặc truy
-          cập link do công ty cung cấp.
+          Vui lòng nhập mã bếp (ví dụ: <strong>ss</strong>, <strong>gt</strong>) hoặc truy cập link do công ty cung cấp.
         </p>
 
         <form onSubmit={handleSearch} className="space-y-3">
